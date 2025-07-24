@@ -8,6 +8,7 @@ import CompanyDashboard from '@/pages/CompanyDashboard';
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
 import NotFound from '@/pages/NotFound';
+import PaymentHistory from './pages/PaymentHistory';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/company/:companyId" element={<CompanyDashboard />} />
+              <Route path="/payment-history" element={<PaymentHistory />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

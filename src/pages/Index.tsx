@@ -54,6 +54,7 @@ const Index = () => {
   const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
 
   const { logout } = useAuth();
@@ -132,6 +133,7 @@ const Index = () => {
 
   const handleEditVendor = (vendor: Vendor) => {
     setSelectedVendor(vendor);
+    setIsEditMode(true);
     setIsEditDialogOpen(true);
   };
   // const handleEditVendor = (vendor: Vendor) => {
@@ -204,7 +206,9 @@ const Index = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">All Companies</h1>
           <div className="flex items-center space-x-4">
-          
+            <Button variant="outline" onClick={() => navigate('/payment-history')}>
+              Payment History
+            </Button>
             <Button variant="outline" onClick={logout}>Logout</Button>
           </div>
         </div>
@@ -286,11 +290,10 @@ const Index = () => {
             onOpenChange={setIsEditDialogOpen}
             vendor={selectedVendor}
             loadTypes={[]}
-            onLogPayment={() => {}}
             onUpdateVendor={handleUpdateVendor}
             onDeleteVendor={handleDeleteVendor}
-            startInEditMode={true}
-            showPaymentFields={false}
+            startInEditMode={isEditMode}
+            showPaymentFields={!isEditMode}
           />
         )}
         <EditCompanyDialog

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DateRange } from "react-day-picker";
 import { VendorList } from "@/components/VendorList";
 import { Vendor } from "@/lib/vender";
+import { Calculator } from "@/components/Calculator";
 
 interface Company {
   id: string;
@@ -32,13 +32,19 @@ interface LoadType {
   companyId: string;
 }
 
-interface Payment {
+interface Payment extends PaymentData {
+  vendorName: string;
+  status: "Paid" | "Pending" | "Failed";
+}
+
+interface PaymentData {
   id: string;
   vendorId: string;
   amount: number;
   loadTypeId: string;
   date: string;
   companyId: string;
+  vehicleNumber?: string;
 }
 
 export default function CompanyDashboard() {
@@ -140,19 +146,30 @@ export default function CompanyDashboard() {
     setIsEditDialogOpen(true);
   };
 
-  const logPayment = (paymentData: { vendorId: string; amount: number; loadTypeId: string; }) => {
+  const logPayment = (paymentData: Omit<PaymentData, "id" | "date" | "companyId">) => {
+    const vendor = vendors.find(v => v.id === paymentData.vendorId);
+    if (!vendor) {
+      toast({
+        title: "Error",
+        description: "Vendor not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const payment: Payment = {
       id: Date.now().toString(),
       ...paymentData,
       date: new Date().toISOString(),
       companyId: companyId!,
+      vendorName: vendor.name,
+      status: "Paid",
     };
 
-    const updatedPayments = [...payments, payment];
-    setPayments(updatedPayments);
-    
     const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
     localStorage.setItem("payments", JSON.stringify([...allPayments, payment]));
+
+    setPayments(prevPayments => [...prevPayments, payment]);
   };
 
   const updateVendor = (updatedVendor: Vendor) => {
@@ -171,7 +188,7 @@ export default function CompanyDashboard() {
     const updatedPayments = payments.filter(p => p.vendorId !== vendorId);
     setPayments(updatedPayments);
     const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-    const filteredPayments = allPayments.filter((p: Payment) => p.vendorId !== vendorId || p.companyId !== companyId);
+    const filteredPayments = allPayments.filter((p: Payment) => p.vendorId !== vendorId);
     localStorage.setItem("payments", JSON.stringify(filteredPayments));
   };
 
@@ -277,11 +294,11 @@ export default function CompanyDashboard() {
                         {dateRange?.from ? (
                           dateRange.to ? (
                             <>
-                              {format(dateRange.from, "LLL dd, y")} -{" "}
-                              {format(dateRange.to, "LLL dd, y")}
+                              {new Date(dateRange.from).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })} -{" "}
+                              {new Date(dateRange.to).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
                             </>
                           ) : (
-                            format(dateRange.from, "LLL dd, y")
+                            new Date(dateRange.from).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
                           )
                         ) : (
                           <span>Pick a date range</span>
@@ -341,8 +358,9 @@ export default function CompanyDashboard() {
             </Card>
           </div>
 
-          {/* Load Types Management */}
-          <div>
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Load Types Management */}
             <Card>
               <CardHeader>
                 <CardTitle>Manage Load Types</CardTitle>
@@ -383,6 +401,9 @@ export default function CompanyDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Calculator */}
+            <Calculator />
           </div>
         </div>
 

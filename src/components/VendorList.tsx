@@ -39,6 +39,10 @@ interface Vendor {
   vehicleNumbers: string[];
 }
 
+interface SelectedVehicleNumbers {
+  [vendorId: string]: string;
+}
+
 interface LoadType {
   id: string;
   name: string;
@@ -55,6 +59,7 @@ interface VendorListProps {
 export function VendorList({ vendors, loadTypes, onEditVendor, onPayVendor, onDeleteVendor }: VendorListProps) {
   const [vendorSearchTerm, setVendorSearchTerm] = useState("");
   const [filteredVendors, setFilteredVendors] = useState<Vendor[]>(vendors);
+  const [selectedVehicleNumbers, setSelectedVehicleNumbers] = useState<SelectedVehicleNumbers>({});
 
   useEffect(() => {
     setFilteredVendors(
@@ -72,6 +77,10 @@ export function VendorList({ vendors, loadTypes, onEditVendor, onPayVendor, onDe
   const handleVendorSearch = () => {
     // This function is now effectively handled by the useEffect hook.
     // We can keep it for the button's onClick if needed, or rely on instant search.
+  };
+
+  const handleVehicleNumberSelect = (vendorId: string, vehicleNumber: string) => {
+    setSelectedVehicleNumbers(prev => ({ ...prev, [vendorId]: vehicleNumber }));
   };
 
   if (vendors.length === 0 && vendorSearchTerm === "") {
@@ -130,13 +139,13 @@ export function VendorList({ vendors, loadTypes, onEditVendor, onPayVendor, onDe
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-full justify-between font-normal">
-                            {vendor.vehicleNumbers[0]}
+                            {selectedVehicleNumbers[vendor.id] || vendor.vehicleNumbers[0]}
                             <ChevronDown className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-48">
                           {vendor.vehicleNumbers.map((vn, index) => (
-                            <DropdownMenuItem key={index}>{vn}</DropdownMenuItem>
+                            <DropdownMenuItem key={index} onSelect={() => handleVehicleNumberSelect(vendor.id, vn)}>{vn}</DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>

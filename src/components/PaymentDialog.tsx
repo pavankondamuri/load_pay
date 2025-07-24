@@ -15,8 +15,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { CreditCard, IndianRupee, Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CreditCard, IndianRupee, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PaymentMethod } from "./PaymentMethod";
 
 interface PaymentDialogProps {
   open: boolean;
@@ -32,7 +34,7 @@ interface PaymentDialogProps {
     vehicleNumbers?: string[];
   };
   loadTypes: Array<{ id: string; name: string; }>;
-  onLogPayment: (payment: { vendorId: string; amount: number; loadTypeId: string; }) => void;
+  onLogPayment?: (payment: { vendorId: string; amount: number; loadTypeId:string, vehicleNumber?: string; }) => void;
   onUpdateVendor: (vendor: Omit<PaymentDialogProps['vendor'], 'paymentMethod'>) => void;
   onDeleteVendor: (vendorId: string) => void;
   startInEditMode?: boolean;
@@ -42,12 +44,15 @@ interface PaymentDialogProps {
 export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPayment, onUpdateVendor, onDeleteVendor, startInEditMode = false, showPaymentFields = true }: PaymentDialogProps) {
   const [amount, setAmount] = useState("");
   const [loadTypeId, setLoadTypeId] = useState("");
+  const [vehicleNumber, setVehicleNumber] = useState("");
   const [isEditing, setIsEditing] = useState(startInEditMode);
   const [editedVendor, setEditedVendor] = useState(vendor);
+  const [newVehicleNumber, setNewVehicleNumber] = useState("");
 
   useEffect(() => {
     setEditedVendor(vendor);
     setIsEditing(startInEditMode);
+    setVehicleNumber("");
   }, [vendor, open, startInEditMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -72,30 +77,64 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
       return;
     }
 
-    onLogPayment({
+    if (vendor.vehicleNumbers && vendor.vehicleNumbers.length > 0 && !vehicleNumber) {
+      toast({
+        title: "Error",
+        description: "Please select a vehicle number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onLogPayment?.({
       vendorId: vendor.id,
       amount: numAmount,
       loadTypeId,
+      vehicleNumber: vehicleNumber || undefined,
     });
 
     setAmount("");
     setLoadTypeId("");
+    setVehicleNumber("");
     onOpenChange(false);
     
     toast({
       title: "Payment Logged",
-      description: `₹${numAmount.toLocaleString()} payment to ${vendor.name} has been logged`,
+      description: `₹${numAmount.toLocaleString('en-IN')} payment to ${vendor.name} has been logged`,
     });
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    if (/^[0-9]*\.?[0-9]*$/.test(value)) {
+      setAmount(value);
+    }
   };
 
   const formatAmount = (value: string) => {
     const num = parseFloat(value);
-    return isNaN(num) ? "0" : num.toLocaleString();
+    return isNaN(num) ? "0" : num.toLocaleString('en-IN');
   };
   
   const handleVendorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditedVendor(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddVehicleNumber = () => {
+    if (newVehicleNumber.trim() === "") return;
+    setEditedVendor(prev => ({
+      ...prev,
+      vehicleNumbers: [...(prev.vehicleNumbers || []), newVehicleNumber.trim()],
+    }));
+    setNewVehicleNumber("");
+  };
+
+  const handleRemoveVehicleNumber = (vehicleNumber: string) => {
+    setEditedVendor(prev => ({
+      ...prev,
+      vehicleNumbers: prev.vehicleNumbers?.filter(vn => vn !== vehicleNumber),
+    }));
   };
 
   const handleSaveVendor = () => {
@@ -120,7 +159,10 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+      <DialogContent 
+        className="sm:max-w-md max-h-[90vh] flex flex-col"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <CreditCard className="h-5 w-5" />
@@ -142,6 +184,14 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
                   <div className="font-mono text-sm break-words">{editedVendor.bankAccountNumber}</div>
                   <div className="text-sm text-muted-foreground">IFSC Code</div>
                   <div className="font-mono text-sm break-words">{editedVendor.ifscCode}</div>
+                  {editedVendor.vehicleNumbers && editedVendor.vehicleNumbers.length > 0 && (
+                    <>
+                      <div className="text-sm text-muted-foreground pt-1">Vehicle Numbers</div>
+                      <div className="flex flex-wrap gap-1">
+                        {editedVendor.vehicleNumbers.map(vn => <Badge key={vn} variant="secondary">{vn}</Badge>)}
+                      </div>
+                    </>
+                  )}
                 </>
               </div>
             ) : (
@@ -168,16 +218,32 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="vehicleNumbers">Vehicle Numbers</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a vehicle number" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {editedVendor.vehicleNumbers?.map((vn, index) => (
-                        <SelectItem key={index} value={vn}>{vn}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    {editedVendor.vehicleNumbers?.map((vn, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span>{vn}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveVehicleNumber(vn)}
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex space-x-2 mt-2">
+                    <Input
+                      value={newVehicleNumber}
+                      onChange={(e) => setNewVehicleNumber(e.target.value)}
+                      placeholder="Add vehicle number"
+                      onKeyPress={(e) => e.key === "Enter" && handleAddVehicleNumber()}
+                    />
+                    <Button onClick={handleAddVehicleNumber} size="icon">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="flex justify-between items-center pt-2">
@@ -205,7 +271,7 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
                     </AlertDialogContent>
                   </AlertDialog>
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button size="sm" onClick={handleSaveVendor}>Save</Button>
                   </div>
                 </div>
@@ -214,20 +280,20 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
           </div>
 
           {showPaymentFields && !isEditing && (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form id="payment-form" onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-3">
                 <Label htmlFor="amount" className="text-lg font-medium">Payment Amount</Label>
                 <div className="relative">
                   <IndianRupee className="absolute left-3 top-3 h-6 w-6 text-muted-foreground" />
                   <Input
                     id="amount"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={handleAmountChange}
+                    onKeyDown={(e) => e.stopPropagation()}
                     placeholder="0.00"
                     className="text-2xl font-bold h-16 pl-12 text-center"
-                    step="0.01"
-                    min="0"
                     required
                   />
                 </div>
@@ -253,25 +319,55 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
                   </SelectContent>
                 </Select>
               </div>
+
+              {vendor.vehicleNumbers && vendor.vehicleNumbers.length > 0 ? (
+                <div className="space-y-2">
+                  <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                  <Select value={vehicleNumber} onValueChange={setVehicleNumber}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a vehicle number" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendor.vehicleNumbers.map((vn) => (
+                        <SelectItem key={vn} value={vn}>
+                          {vn}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                  <Input
+                    id="vehicleNumber"
+                    value={vehicleNumber}
+                    onChange={(e) => setVehicleNumber(e.target.value)}
+                    placeholder="e.g. AB-12-CD-3456"
+                  />
+                </div>
+              )}
+
+              <PaymentMethod />
             </form>
           )}
         </div>
 
         {showPaymentFields && !isEditing ? (
           <div className="flex space-x-2 pt-4 mt-4 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)} 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
               className="flex-1"
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
+              form="payment-form"
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              disabled={!amount || !loadTypeId}
-              onClick={handleSubmit}
+              disabled={!amount || !loadTypeId || (vendor.vehicleNumbers && vendor.vehicleNumbers.length > 0 && !vehicleNumber)}
             >
               Log Payment of ₹{amount ? formatAmount(amount) : "0"}
             </Button>
