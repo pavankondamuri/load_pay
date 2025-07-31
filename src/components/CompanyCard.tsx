@@ -16,24 +16,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface CompanyCardProps {
-  id: string;
-  name: string;
+  id?: string;
+  companyName: string;
   description: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
+  ownerName?: string;
+  email?: string;
+  phoneNumber?: string;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-export function CompanyCard({ id, name, description, contactName, contactEmail, contactPhone, onView, onEdit, onDelete }: CompanyCardProps) {
+export function CompanyCard({ id, companyName, description, ownerName, email, phoneNumber, onView, onEdit, onDelete }: CompanyCardProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-xl font-bold">{name}</CardTitle>
+            <CardTitle className="text-xl font-bold">{companyName}</CardTitle>
             <CardDescription className="text-sm text-muted-foreground pt-1">
               {description}
             </CardDescription>
@@ -59,22 +59,22 @@ export function CompanyCard({ id, name, description, contactName, contactEmail, 
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="space-y-2 text-sm text-muted-foreground">
-          {contactName && (
+          {ownerName && (
             <div className="flex items-center">
               <Building2 className="h-4 w-4 mr-2" />
-              <span>{contactName}</span>
+              <span>{ownerName}</span>
             </div>
           )}
-          {contactEmail && (
+          {email && (
             <div className="flex items-center">
               <Building2 className="h-4 w-4 mr-2" />
-              <span>{contactEmail}</span>
+              <span>{email}</span>
             </div>
           )}
-          {contactPhone && (
+            {phoneNumber && (
             <div className="flex items-center">
               <Building2 className="h-4 w-4 mr-2" />
-              <span>{contactPhone}</span>
+              <span>{phoneNumber}</span>
             </div>
           )}
         </div>

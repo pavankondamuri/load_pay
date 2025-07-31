@@ -15,7 +15,6 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { DateRange } from "react-day-picker";
 import { VendorList } from "@/components/VendorList";
-import { Vendor } from "@/lib/vender";
 import { Calculator } from "@/components/Calculator";
 
 interface Company {
@@ -53,13 +52,13 @@ export default function CompanyDashboard() {
   
   // State
   const [company, setCompany] = useState<Company | null>(null);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loadTypes, setLoadTypes] = useState<LoadType[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [newLoadType, setNewLoadType] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
+  const [selectedVendor, setSelectedVendor] = useState<any | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -74,15 +73,21 @@ export default function CompanyDashboard() {
     setCompany(foundCompany || null);
 
     const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
+    const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
+    const allLoadTypes = JSON.parse(localStorage.getItem("loadTypes") || "[]");
+    
     setVendors(allVendors);
     setFilteredVendors(allVendors);
+
+    const companyPayments = allPayments.filter((p: Payment) => p.companyId === companyId);
     
-    const allLoadTypes = JSON.parse(localStorage.getItem("loadTypes") || "[]");
     setLoadTypes(allLoadTypes.filter((lt: LoadType) => lt.companyId === companyId));
-    
-    const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-    setPayments(allPayments.filter((p: Payment) => p.companyId === companyId));
+    setPayments(companyPayments);
   }, [companyId]);
+
+  useEffect(() => {
+    handleSearch();
+  }, [searchTerm, vendors]);
 
   const addLoadType = () => {
     if (!newLoadType.trim()) {
@@ -128,7 +133,7 @@ export default function CompanyDashboard() {
     });
   };
 
-  const handlePayVendor = (vendor: Vendor) => {
+  const handlePayVendor = (vendor: any) => {
     if (loadTypes.length === 0) {
       toast({
         title: "Error",
@@ -141,7 +146,7 @@ export default function CompanyDashboard() {
     setPaymentDialogOpen(true);
   };
 
-  const handleEditVendor = (vendor: Vendor) => {
+  const handleEditVendor = (vendor: any) => {
     setSelectedVendor(vendor);
     setIsEditDialogOpen(true);
   };
@@ -172,7 +177,7 @@ export default function CompanyDashboard() {
     setPayments(prevPayments => [...prevPayments, payment]);
   };
 
-  const updateVendor = (updatedVendor: Vendor) => {
+  const updateVendor = (updatedVendor: any) => {
     const updatedVendors = vendors.map(v => v.id === updatedVendor.id ? updatedVendor : v);
     setVendors(updatedVendors);
     localStorage.setItem("vendors", JSON.stringify(updatedVendors));
@@ -366,17 +371,23 @@ export default function CompanyDashboard() {
                 <CardTitle>Manage Load Types</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex space-x-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addLoadType();
+                  }}
+                  className="flex space-x-2"
+                >
                   <Input
                     value={newLoadType}
                     onChange={(e) => setNewLoadType(e.target.value)}
                     placeholder="Enter load type name"
-                    onKeyPress={(e) => e.key === "Enter" && addLoadType()}
+                    className="flex-grow"
                   />
-                  <Button onClick={addLoadType} size="icon">
+                  <Button type="submit" size="icon" className="flex-shrink-0">
                     <Plus className="h-4 w-4" />
                   </Button>
-                </div>
+                </form>
                 
                 <div className="space-y-2">
                   {loadTypes.length === 0 ? (
@@ -409,11 +420,13 @@ export default function CompanyDashboard() {
 
         {/* Vendors Table */}
         <VendorList 
-          vendors={vendors} 
+          vendors={filteredVendors} 
           loadTypes={loadTypes} 
           onEditVendor={handleEditVendor} 
           onPayVendor={handlePayVendor}
           onDeleteVendor={deleteVendor}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
         />
 
         {/* Payment Dialog */}

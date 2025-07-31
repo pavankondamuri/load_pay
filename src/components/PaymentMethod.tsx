@@ -12,7 +12,11 @@ export function PaymentMethod() {
         <div className="space-y-4">
           <Button variant="outline" className="w-full justify-start">
             <IndianRupee className="mr-2 h-4 w-4" />
-            Cash Payment
+            Net banking
+          </Button>
+          <Button variant="outline" className="w-full justify-start">
+            <IndianRupee className="mr-2 h-4 w-4" />
+            UPI
           </Button>
         </div>
       </CardContent>

@@ -14,22 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Users, Plus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-interface AddVendorDialogProps {
-  onAddVendor: (vendorData: {
-    name: string;
-    accountHolderName: string;
-    bankAccountNumber: string;
-    ifscCode: string;
-    phoneNumber: string;
-    vehicleNumbers: string[];
-  }) => void;
-}
-
-export function AddVendorDialog({ onAddVendor }: AddVendorDialogProps) {
+export function AddVendorDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [accountHolderName, setAccountHolderName] = useState("");
-  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [ifscCode, setIfscCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [vehicleNumbers, setVehicleNumbers] = useState<string[]>([""]);
@@ -68,7 +57,7 @@ export function AddVendorDialog({ onAddVendor }: AddVendorDialogProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !accountHolderName.trim() || !bankAccountNumber.trim() || !ifscCode.trim()) {
+    if (!name.trim() || !accountHolderName.trim() || !accountNumber.trim() || !ifscCode.trim()) {
       toast({
         title: "Error",
         description: "Please fill out all required fields.",
@@ -76,12 +65,22 @@ export function AddVendorDialog({ onAddVendor }: AddVendorDialogProps) {
       });
       return;
     }
-    onAddVendor({ name, accountHolderName, bankAccountNumber, ifscCode, phoneNumber, vehicleNumbers: vehicleNumbers.filter(vn => vn.trim() !== '') });
+    const newVendor = {
+      id: Date.now().toString(),
+      name,
+      accountHolderName,
+      accountNumber,
+      ifscCode,
+      phoneNumber,
+      vehicleNumbers: vehicleNumbers.filter(vn => vn.trim() !== ''),
+    };
+    const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
+    localStorage.setItem("vendors", JSON.stringify([...allVendors, newVendor]));
     setOpen(false);
     // Reset form
     setName("");
     setAccountHolderName("");
-    setBankAccountNumber("");
+    setAccountNumber("");
     setIfscCode("");
     setPhoneNumber("");
     setVehicleNumbers([""]);
@@ -130,8 +129,8 @@ export function AddVendorDialog({ onAddVendor }: AddVendorDialogProps) {
               <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
               <Input
                 id="bankAccountNumber"
-                value={bankAccountNumber}
-                onChange={(e) => setBankAccountNumber(e.target.value)}
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
                 required
               />
             </div>

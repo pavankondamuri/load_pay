@@ -132,6 +132,14 @@ export function Calculator() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        if (!event.target.readOnly) {
+          return;
+        }
+      }
       event.preventDefault();
       const { key } = event;
       if (key >= '0' && key <= '9') {

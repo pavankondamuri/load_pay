@@ -6,44 +6,65 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Building2, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import axios from "axios";
 
 interface AddCompanyDialogProps {
-  onAddCompany: (company: { name: string; description: string,  contactName?: string, contactEmail?: string, contactPhone?: string, }) => void;
+  // companyName, ownerName, email, phoneNumber, description 
+  onAddCompany: (company: { companyName: string; description: string,  ownerName?: string, email?: string, phoneNumber?: string, }) => void;
 }
 
 export function AddCompanyDialog({ onAddCompany }: AddCompanyDialogProps) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [description, setDescription] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setphoneNumber] = useState("");
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit =  async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name.trim()) {
+    try {
+        const response = await axios.post("http://localhost:3000/api/company/create",{companyName,description,ownerName,email,phoneNumber},
+          {
+            headers:{
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        console.log(response,"response")
+        if(response.status===201){
+          onAddCompany({ companyName: companyName.trim(), description: description.trim(), ownerName: ownerName.trim(), email: email.trim(), phoneNumber: phoneNumber.trim()});
+            toast({
+                title: "Success",
+                description: "Company added successfully",
+            });
+            setCompanyName("");
+            setDescription("");
+            setOwnerName("");
+            setEmail("");
+            setphoneNumber("");
+            setOpen(false);
+        }
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Company name is required",
+        description: "Company not added",
         variant: "destructive",
       });
-      return;
+        console.log(error,"error")
     }
-
-    onAddCompany({ name: name.trim(), description: description.trim(), contactName: contactName.trim(), contactEmail: contactEmail.trim(), contactPhone: contactPhone.trim()});
-    setName("");
-    setDescription("");
-    setContactName("");
-    setContactEmail("");
-    setContactPhone("");
-    setOpen(false);
-    
-    toast({
-      title: "Success",
-      description: "Company added successfully",
-    });
+    // if (!name.trim()) {
+    //   toast({
+    //     title: "Error",
+    //     description: "Company name is required",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
+    // onAddCompany({ name: name.trim(), description: description.trim(), OwnerName: OwnerName.trim(), email: email.trim(), phoneNumber: phoneNumber.trim()});
+   
+  
   };
 
   return (
@@ -66,39 +87,39 @@ export function AddCompanyDialog({ onAddCompany }: AddCompanyDialogProps) {
             <Label htmlFor="name">Company Name</Label>
             <Input
               id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Enter company name"
               required
             />
           </div>
          
           <div className="space-y-2">
-            <Label htmlFor="contactName">Name (Optional)</Label>
+            <Label htmlFor="ownerName">Name (Optional)</Label>
             <Input
-              id="contactName"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
+              id="ownerName"
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Enter contact name"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="contactEmail"> Email (Optional)</Label>
+            <Label htmlFor="email"> Email (Optional)</Label>
             <Input
-              id="contactEmail"
+              id="email"
               type="email"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter contact email"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="contactPhone">Contact Phone (Optional)</Label>
+            <Label htmlFor="phoneNumber">Contact Phone (Optional)</Label>
             <Input
-              id="contactPhone"
+              id="phoneNumber"
               type="tel"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              value={phoneNumber}
+              onChange={(e) => setphoneNumber(e.target.value)}
               placeholder="Enter contact phone"
             />
           </div>

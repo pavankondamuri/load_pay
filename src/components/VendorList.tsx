@@ -54,36 +54,18 @@ interface VendorListProps {
   onEditVendor?: (vendor: Vendor) => void;
   onPayVendor?: (vendor: Vendor) => void;
   onDeleteVendor?: (vendorId: string) => void;
+  searchTerm: string;
+  onSearchTermChange: (term: string) => void;
 }
 
-export function VendorList({ vendors, loadTypes, onEditVendor, onPayVendor, onDeleteVendor }: VendorListProps) {
-  const [vendorSearchTerm, setVendorSearchTerm] = useState("");
-  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>(vendors);
+export function VendorList({ vendors, searchTerm, onSearchTermChange, onEditVendor, onPayVendor, onDeleteVendor }: VendorListProps) {
   const [selectedVehicleNumbers, setSelectedVehicleNumbers] = useState<SelectedVehicleNumbers>({});
-
-  useEffect(() => {
-    setFilteredVendors(
-      vendors.filter(
-        (vendor) =>
-          vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-          vendor.accountHolderName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-          vendor.ifscCode.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-          vendor.phoneNumber.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-          (vendor.vehicleNumbers && vendor.vehicleNumbers.some(vn => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
-      )
-    );
-  }, [vendorSearchTerm, vendors]);
-
-  const handleVendorSearch = () => {
-    // This function is now effectively handled by the useEffect hook.
-    // We can keep it for the button's onClick if needed, or rely on instant search.
-  };
 
   const handleVehicleNumberSelect = (vendorId: string, vehicleNumber: string) => {
     setSelectedVehicleNumbers(prev => ({ ...prev, [vendorId]: vehicleNumber }));
   };
 
-  if (vendors.length === 0 && vendorSearchTerm === "") {
+  if (vendors.length === 0 && searchTerm === "") {
     return (
       <div className="text-center py-12">
         <Users className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
@@ -109,8 +91,8 @@ export function VendorList({ vendors, loadTypes, onEditVendor, onPayVendor, onDe
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search vendors..."
-                  value={vendorSearchTerm}
-                  onChange={(e) => setVendorSearchTerm(e.target.value)}
+                  value={searchTerm}
+                  onChange={(e) => onSearchTermChange(e.target.value)}
                   className="pl-8 w-64"
                 />
               </div>
@@ -131,7 +113,7 @@ export function VendorList({ vendors, loadTypes, onEditVendor, onPayVendor, onDe
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVendors.map((vendor) => (
+              {vendors.map((vendor) => (
                 <TableRow key={vendor.id}>
                   <TableCell className="font-medium">{vendor.name}</TableCell>
                   <TableCell>

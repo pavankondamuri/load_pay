@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -18,13 +19,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('isAuthenticated', isAuthenticated.toString());
   }, [isAuthenticated]);
   
-  const login = (email: string, pass: string) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find((u: any) => u.email === email && u.password === pass);
-    if (user) {
+  const login =  async (email: string, pass: string) => {
+    const response=await axios.post("http://localhost:3000/api/user/login",{email,password:pass})
+    console.log(response,"response login")
+    if(response.status===200){
       setIsAuthenticated(true);
-    } else {
-      throw new Error('Invalid email or password');
+      localStorage.setItem("token",response.data.token);
     }
   };
 
@@ -32,14 +32,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
   };
 
-  const signup = (email: string, pass: string) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userExists = users.some((u: any) => u.email === email);
-    if (userExists) {
-      throw new Error('User with this email already exists');
-    }
-    const newUser = { email, password: pass };
-    localStorage.setItem('users', JSON.stringify([...users, newUser]));
+  const signup =  async (email: string, pass: string) => {
+    const response=await axios.post("http://localhost:3000/api/user/register",{email,password:pass})
+    // const users = JSON.parse(localStorage.getItem('users') || '[]');
+    // const userExists = users.some((u: any) => u.email === email);
+    // if (userExists) {
+    //   throw new Error('User with this email already exists');
+    // }
+    console.log(response,"response singup")
+    // const newUser = { email, password: pass };
+    // localStorage.setItem('users', JSON.stringify([...users, newUser]));
     setIsAuthenticated(true);
   };
 

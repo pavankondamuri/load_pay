@@ -14,12 +14,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 
 interface Company {
-  id: string;
-  name: string;
+  id?: string;
+  companyName: string;
   description: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
+  ownerName?: string;
+  email?: string;
+  phoneNumber?: string;
+  _id?: string;
 }
 
 interface EditCompanyDialogProps {
@@ -30,19 +31,19 @@ interface EditCompanyDialogProps {
 }
 
 export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }: EditCompanyDialogProps) {
-  const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [description, setDescription] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   useEffect(() => {
     if (company) {
-      setName(company.name);
+      setCompanyName(company.companyName);
       setDescription(company.description);
-      setContactName(company.contactName || "");
-      setContactEmail(company.contactEmail || "");
-      setContactPhone(company.contactPhone || "");
+      setOwnerName(company.ownerName || "");
+      setEmail(company.email || "");
+      setPhoneNumber(company.phoneNumber || "");
     }
   }, [company]);
 
@@ -50,11 +51,11 @@ export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }
     e.preventDefault();
     if (!company) return;
 
-    const trimmedName = name.trim();
+    const trimmedName = companyName.trim();
     const trimmedDescription = description.trim();
-    const trimmedContactName = contactName.trim();
-    const trimmedContactEmail = contactEmail.trim();
-    const trimmedContactPhone = contactPhone.trim();
+    const trimmedOwnerName = ownerName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPhoneNumber = phoneNumber.trim();
 
     if (!trimmedName) {
       toast({
@@ -82,18 +83,18 @@ export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }
       });
       return;
     }
-    
+
     onEditCompany({
       ...company,
-      name: trimmedName,
+      companyName: trimmedName,
       description: trimmedDescription,
-      contactName: trimmedContactName,
-      contactEmail: trimmedContactEmail,
-      contactPhone: trimmedContactPhone,
+      ownerName: trimmedOwnerName,
+      email: trimmedEmail,
+      phoneNumber: trimmedPhoneNumber,
     });
-    
+
     onOpenChange(false);
-    
+
     toast({
       title: "Company Updated",
       description: `${trimmedName} has been updated successfully.`,
@@ -114,8 +115,8 @@ export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }
             <Label htmlFor="edit-company-name">Company Name</Label>
             <Input
               id="edit-company-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Enter company name"
               required
               minLength={2}
@@ -135,8 +136,8 @@ export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }
             <Label htmlFor="edit-contact-name">Contact Name</Label>
             <Input
               id="edit-contact-name"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Enter contact name"
             />
           </div>
@@ -145,8 +146,8 @@ export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }
             <Input
               id="edit-contact-email"
               type="email"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter contact email"
             />
           </div>
@@ -155,8 +156,8 @@ export function EditCompanyDialog({ company, open, onOpenChange, onEditCompany }
             <Input
               id="edit-contact-phone"
               type="tel"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
               placeholder="Enter contact phone"
             />
           </div>

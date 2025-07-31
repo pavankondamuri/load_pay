@@ -28,14 +28,16 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Vendor } from "@/lib/vender";
 import { PaymentDialog } from "@/components/PaymentDialog";
+import axios from "axios";
 
 interface Company {
-  id: string;
-  name: string;
+  id?: string;
+  companyName: string;
   description: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
+  ownerName?: string;
+  email?: string;
+  phoneNumber?: string;
+  _id?: string;
 }
 
 
@@ -43,15 +45,15 @@ interface Company {
 const Index = () => {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [addCompanyOpen, setAddCompanyOpen] = useState(false);
   const [editCompanyOpen, setEditCompanyOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [editVendorOpen, setEditVendorOpen] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<any | null>(null);
   const [vendorSearchTerm, setVendorSearchTerm] = useState("");
   const [companySearchTerm, setCompanySearchTerm] = useState("");
-  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
+  const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -62,14 +64,29 @@ const Index = () => {
   // Load data from localStorage on component mount
   useEffect(() => {
     const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
-    const allCompanies = JSON.parse(localStorage.getItem("companies") || "[]");
-    setCompanies(allCompanies);
-    setFilteredCompanies(allCompanies);
+
+    const allCompanies = async()=>{ 
+     const  res = await axios.get("http://localhost:3000/api/company/get",{
+      headers:{
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+     });
+     return res.data.compines;
+    };
+    allCompanies().then(res=>{
+      setCompanies(res);
+      setFilteredCompanies(res);
+    });
+    console.log(companies,"companies");
     setVendors(allVendors);
     setFilteredVendors(allVendors);
   }, []);
 
-  const addCompany = (companyData: { name: string; description: string, contactName?: string; contactEmail?: string; contactPhone?: string; }) => {
+  useEffect(() => {
+    handleVendorSearch();
+  }, [vendorSearchTerm, vendors]);
+
+  const addCompany = (companyData: { companyName: string; description: string, ownerName?: string, email?: string, phoneNumber?: string, }) => {
     const newCompany: Company = {
       id: Date.now().toString(),
       ...companyData,
@@ -95,7 +112,7 @@ const Index = () => {
     setCompanies(updatedCompanies);
     
     const searchResult = updatedCompanies.filter((company) =>
-      company.name.toLowerCase().includes(companySearchTerm.toLowerCase())
+      company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
     );
     setFilteredCompanies(searchResult);
     
@@ -109,7 +126,7 @@ const Index = () => {
     setCompanies(updatedCompanies);
 
     const searchResult = updatedCompanies.filter((company) =>
-      company.name.toLowerCase().includes(companySearchTerm.toLowerCase())
+      company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
     );
     setFilteredCompanies(searchResult);
 
@@ -120,8 +137,8 @@ const Index = () => {
     });
   };
 
-  const addVendor = (vendorData: { name: string; accountHolderName: string; bankAccountNumber: string; ifscCode: string; phoneNumber: string; vehicleNumbers: string[]; }) => {
-    const newVendor: Vendor = {
+  const addVendor = (vendorData: { name: string; accountHolderName: string; accountNumber: string; ifscCode: string; phoneNumber: string; vehicleNumbers: string[]; }) => {
+    const newVendor = {
       id: Date.now().toString(),
       ...vendorData,
     };
@@ -131,7 +148,7 @@ const Index = () => {
     localStorage.setItem("vendors", JSON.stringify(updatedVendors));
   };
 
-  const handleEditVendor = (vendor: Vendor) => {
+  const handleEditVendor = (vendor: any) => {
     setSelectedVendor(vendor);
     setIsEditMode(true);
     setIsEditDialogOpen(true);
@@ -141,7 +158,7 @@ const Index = () => {
   //   setEditVendorOpen(true);
   // };
 
-  const handleUpdateVendor = (updatedVendor: Vendor) => {
+  const handleUpdateVendor = (updatedVendor: any) => {
     const updatedVendors = vendors.map((vendor) =>
       vendor.id === updatedVendor.id ? updatedVendor : vendor
     );
@@ -195,7 +212,7 @@ const Index = () => {
 
   const handleCompanySearch = () => {
     const searchResult = companies.filter((company) =>
-      company.name.toLowerCase().includes(companySearchTerm.toLowerCase())
+      company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
     );
     setFilteredCompanies(searchResult);
   };
@@ -216,7 +233,7 @@ const Index = () => {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
           <AddCompanyDialog onAddCompany={addCompany} />
-          <AddVendorDialog onAddVendor={addVendor} />
+          <AddVendorDialog />
         </div>
 
         {/* Stats */}
@@ -263,11 +280,11 @@ const Index = () => {
                 <CompanyCard
                   key={company.id}
                   id={company.id}
-                  name={company.name}
+                  companyName={company.companyName}
                   description={company.description}
-                  contactName={company.contactName}
-                  contactEmail={company.contactEmail}
-                  contactPhone={company.contactPhone}
+                  ownerName={company.ownerName}
+                  email={company.email}
+                  phoneNumber={company.phoneNumber}
                   onView={viewCompany}
                   onEdit={handleEditCompany}
                   onDelete={handleDeleteCompany}
@@ -282,6 +299,8 @@ const Index = () => {
           vendors={filteredVendors} 
           onEditVendor={handleEditVendor} 
           onDeleteVendor={handleDeleteVendor}
+          searchTerm={vendorSearchTerm}
+          onSearchTermChange={setVendorSearchTerm}
         />
         </div>
         {selectedVendor && (
@@ -296,12 +315,14 @@ const Index = () => {
             showPaymentFields={!isEditMode}
           />
         )}
-        <EditCompanyDialog
-          company={selectedCompany}
-          open={editCompanyOpen}
-          onOpenChange={setEditCompanyOpen}
-          onEditCompany={handleUpdateCompany}
-        />
+        {selectedCompany && (
+          <EditCompanyDialog
+            company={selectedCompany}
+            open={editCompanyOpen}
+            onOpenChange={setEditCompanyOpen}
+            onEditCompany={handleUpdateCompany}
+          />
+        )}
       </div>
     </div>
   );
