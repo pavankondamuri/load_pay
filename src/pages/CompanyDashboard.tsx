@@ -18,9 +18,15 @@ import { VendorList } from "@/components/VendorList";
 import { Calculator } from "@/components/Calculator";
 
 interface Company {
-  id: string;
-  name: string;
-  description: string;
+ _id?: string;
+ companyName: string;
+ ownerName: string;
+ email?: string;
+ phoneNumber?: number;
+ description?: string;
+ paymentHistory: string[];
+ createdAt?: string;
+ updatedAt?: string;
 }
 
 
@@ -61,6 +67,7 @@ export default function CompanyDashboard() {
   const [selectedVendor, setSelectedVendor] = useState<any | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
@@ -68,8 +75,8 @@ export default function CompanyDashboard() {
 
   // Load data from localStorage
   useEffect(() => {
-    const companies = JSON.parse(localStorage.getItem("companies") || "[]");
-    const foundCompany = companies.find((c: Company) => c.id === companyId);
+    const companies = JSON.parse(localStorage.getItem("companies") || "[]");                
+    const foundCompany = companies.find((c: Company) => c._id === companyId);
     setCompany(foundCompany || null);
 
     const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
@@ -181,6 +188,10 @@ export default function CompanyDashboard() {
     const updatedVendors = vendors.map(v => v.id === updatedVendor.id ? updatedVendor : v);
     setVendors(updatedVendors);
     localStorage.setItem("vendors", JSON.stringify(updatedVendors));
+    toast({
+      title: "Vendor Updated",
+      description: `${updatedVendor.name} has been updated successfully.`,
+    });
   };
 
   const deleteVendor = (vendorId: string) => {
@@ -261,11 +272,11 @@ export default function CompanyDashboard() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{company.name}</BreadcrumbPage>
+                  <BreadcrumbPage>{company.companyName}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
-            <h1 className="text-3xl font-bold">{company.name} Dashboard</h1>
+            <h1 className="text-3xl font-bold">{company.companyName} Dashboard</h1>
             {company.description && (
               <p className="text-muted-foreground">{company.description}</p>
             )}
