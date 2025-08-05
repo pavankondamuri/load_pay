@@ -11,15 +11,32 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Payment } from "@/lib/payment";
 import { IndianRupee, Clock } from "lucide-react";
+import axios from "axios";
 
 const PaymentHistoryList = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Replace with actual API call when payment system is implemented
-    // For now, show empty state
-    setIsLoading(false);
+    setIsLoading(true);
+    axios.get("/api/payments/history")
+      .then(res => {
+        // Map backend payment fields to Payment type for display
+        const backendPayments = res.data.map((p: any) => ({
+          id: p.id,
+          vendorName: p.vendorName,
+          amount: p.amount,
+          date: p.date,
+          status: p.status,
+          vehicleNumber: Array.isArray(p.vehicleNumbers) ? p.vehicleNumbers.join(", ") : p.vehicleNumber || "",
+        }));
+        setPayments(backendPayments);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setPayments([]);
+        setIsLoading(false);
+      });
   }, []);
 
   const formatToIST = (dateString: string) => {

@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, IndianRupee, Pencil, Trash2, Plus, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PaymentMethod } from "./PaymentMethod";
+import axios from "axios";
 
 interface PaymentDialogProps {
   open: boolean;
@@ -41,6 +42,17 @@ interface PaymentDialogProps {
   onDeleteVendor: (vendorId: string) => void;
   startInEditMode?: boolean;
   showPaymentFields?: boolean;
+}
+
+// Razorpay script loader
+function loadRazorpayScript(src: string) {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPayment, onUpdateVendor, onDeleteVendor, startInEditMode = false, showPaymentFields = true }: PaymentDialogProps) {
@@ -108,12 +120,11 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
   };
 
   const handleSaveVendor = () => {
-    // Convert account number and phone number to integers for backend
     const vendorToUpdate = {
       ...editedVendor,
-      accountNumber: parseInt(editedVendor.accountNumber || "0"),
-      phoneNumber: parseInt(editedVendor.phoneNumber || "0"),
-      vechicleNumber: editedVendor.vehicleNumbers || editedVendor.vechicleNumber || [],
+      accountNumber: editedVendor.accountNumber || "",
+      phoneNumber: editedVendor.phoneNumber || "",
+      vehicleNumbers: editedVendor.vehicleNumbers || editedVendor.vechicleNumber || [],
     };
     onUpdateVendor(vendorToUpdate);
     setIsEditing(false);
@@ -125,6 +136,76 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
     if (vendorId) {
       onDeleteVendor(vendorId);
       onOpenChange(false);
+    }
+  };
+
+  const handlePayWithRazorpay = async () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      toast({ title: "Invalid Amount", description: "Please enter a valid amount." });
+      return;
+    }
+    // Load Razorpay script
+    const res = await loadRazorpayScript("https://checkout.razorpay.com/v1/checkout.js");
+    if (!res) {
+      toast({ title: "Razorpay SDK failed to load" });
+      return;
+    }
+    // Create order on backend
+    try {
+      const orderRes = await axios.post("/api/payments/create-order", {
+        amount: Number(amount),
+        currency: "INR",
+        notes: {
+          vendorName: vendor.name,
+          accountHolderName: vendor.accountHolderName,
+          accountNumber: vendor.accountNumber,
+          ifscCode: vendor.ifscCode,
+          vehicleNumbers: vendor.vehicleNumbers || vendor.vechicleNumber || [],
+          loadTypeId,
+        },
+      });
+      const order = orderRes.data;
+      const options = {
+        key: "rzp_test_vD4d9vn4KvOa5t", // fallback to test key
+        amount: order.amount,
+        currency: order.currency,
+        name: vendor.name,
+        description: "Payment for services",
+        order_id: order.id,
+        handler: async function (response: any) {
+          // Call backend to verify payment and store history
+          try {
+            const verifyRes = await axios.post("/api/payments/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: Number(amount),
+              vendorName: vendor.name,
+              accountHolderName: vendor.accountHolderName,
+              accountNumber: vendor.accountNumber,
+              ifscCode: vendor.ifscCode,
+              vehicleNumbers: vendor.vehicleNumbers || vendor.vechicleNumber || [],
+              loadTypeId,
+            });
+            toast({ title: "Payment Success", description: `Payment verified and logged! Payment ID: ${response.razorpay_payment_id}` });
+          } catch (err: any) {
+            toast({ title: "Verification Error", description: err?.response?.data?.message || err.message });
+          }
+          onOpenChange(false);
+        },
+        prefill: {
+          name: vendor.accountHolderName,
+          email: "", // Optionally add email
+          contact: vendor.phoneNumber || "",
+        },
+        notes: order.notes,
+        theme: { color: "#3399cc" },
+      };
+      // @ts-ignore
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err: any) {
+      toast({ title: "Payment Error", description: err?.response?.data?.error || err.message });
     }
   };
 
@@ -247,25 +328,43 @@ export function PaymentDialog({ open, onOpenChange, vendor, loadTypes, onLogPaym
             </div>
           </div>
         ) : showPaymentFields ? (
-          // Payment Form (Placeholder)
-          <div className="space-y-4">
-            <div className="text-center py-8">
-              <Clock className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-muted-foreground mb-2">Payment System Coming Soon</h3>
-              <p className="text-muted-foreground mb-6">
-                Payment functionality will be available once the payment gateway is integrated. 
-                You'll be able to log payments, track expenses, and generate reports.
-              </p>
-              <div className="flex justify-center space-x-2">
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  Close
-                </Button>
-                <Button onClick={() => setIsEditing(true)}>
-                  Edit Vendor Instead
-                </Button>
-              </div>
+          // Payment Form
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handlePayWithRazorpay(); }}>
+            <div>
+              <Label htmlFor="amount">Amount</Label>
+              <Input id="amount" value={amount} onChange={handleAmountChange} placeholder="Enter amount" required />
             </div>
-          </div>
+            <div>
+              <Label htmlFor="loadType">Load Type</Label>
+              <Select value={loadTypeId} onValueChange={setLoadTypeId} required>
+                <SelectTrigger id="loadType">
+                  <SelectValue placeholder="Select load type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadTypes.map(type => (
+                    <SelectItem key={type._id} value={type._id}>{type.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Vehicle Numbers</Label>
+              {(editedVendor.vehicleNumbers || []).map((vn, index) => (
+                <Badge key={index} className="mr-2">{vn}</Badge>
+              ))}
+            </div>
+            <Button type="submit" className="w-full mt-4">
+              Pay with Razorpay
+            </Button>
+            <div className="flex justify-center space-x-2 mt-4">
+              <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              <Button type="button" onClick={() => setIsEditing(true)}>
+                Edit Vendor Instead
+              </Button>
+            </div>
+          </form>
         ) : (
           // View Vendor Details
           <div className="space-y-4">
