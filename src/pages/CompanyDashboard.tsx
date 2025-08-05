@@ -10,12 +10,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { PaymentDialog } from "@/components/PaymentDialog";
-import { ArrowLeft, Plus, Search, CreditCard, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, Plus, Search, CreditCard, Trash2, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { DateRange } from "react-day-picker";
 import { VendorList } from "@/components/VendorList";
 import { Calculator } from "@/components/Calculator";
+import { companyAPI, vendorAPI, loadTypeAPI } from "@/lib/api";
 
 interface Company {
  _id?: string;
@@ -29,12 +30,12 @@ interface Company {
  updatedAt?: string;
 }
 
-
-
 interface LoadType {
-  id: string;
+  _id: string;
   name: string;
   companyId: string;
+  description?: string;
+  isActive: boolean;
 }
 
 interface Payment extends PaymentData {
@@ -68,36 +69,58 @@ export default function CompanyDashboard() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
   });
 
-  // Load data from localStorage
+  // Load data from APIs
   useEffect(() => {
-    const companies = JSON.parse(localStorage.getItem("companies") || "[]");                
-    const foundCompany = companies.find((c: Company) => c._id === companyId);
-    setCompany(foundCompany || null);
-
-    const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
-    const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-    const allLoadTypes = JSON.parse(localStorage.getItem("loadTypes") || "[]");
-    
-    setVendors(allVendors);
-    setFilteredVendors(allVendors);
-
-    const companyPayments = allPayments.filter((p: Payment) => p.companyId === companyId);
-    
-    setLoadTypes(allLoadTypes.filter((lt: LoadType) => lt.companyId === companyId));
-    setPayments(companyPayments);
+    loadData();
   }, [companyId]);
+
+  const loadData = async () => {
+    if (!companyId) return;
+    
+    setIsLoading(true);
+    try {
+      // Load company details
+      const companyResponse = await companyAPI.getById(companyId);
+      setCompany(companyResponse.data.company);
+
+      // Load vendors
+      const vendorsResponse = await vendorAPI.getAll();
+      const vendorsData = vendorsResponse.data.vendors || [];
+      setVendors(vendorsData);
+      setFilteredVendors(vendorsData);
+
+      // Load load types for this company
+      const loadTypesResponse = await loadTypeAPI.getByCompany(companyId);
+      const loadTypesData = loadTypesResponse.data.loadTypes || [];
+      setLoadTypes(loadTypesData);
+
+      // TODO: Load payments from API when payment system is implemented
+      // For now, set empty array
+      setPayments([]);
+    } catch (error: any) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load company data. Please refresh the page.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     handleSearch();
   }, [searchTerm, vendors]);
 
-  const addLoadType = () => {
-    if (!newLoadType.trim()) {
+  const addLoadType = async () => {
+    if (!newLoadType.trim() || !companyId) {
       toast({
         title: "Error",
         description: "Load type name is required",
@@ -106,38 +129,50 @@ export default function CompanyDashboard() {
       return;
     }
 
-    const loadType: LoadType = {
-      id: Date.now().toString(),
-      name: newLoadType.trim(),
-      companyId: companyId!,
-    };
+    try {
+      const response = await loadTypeAPI.create({
+        name: newLoadType.trim(),
+        companyId: companyId,
+      });
 
-    const updatedLoadTypes = [...loadTypes, loadType];
-    setLoadTypes(updatedLoadTypes);
-    
-    const allLoadTypes = JSON.parse(localStorage.getItem("loadTypes") || "[]");
-    const filteredLoadTypes = allLoadTypes.filter((lt: LoadType) => lt.companyId !== companyId);
-    localStorage.setItem("loadTypes", JSON.stringify([...filteredLoadTypes, ...updatedLoadTypes]));
-    
-    setNewLoadType("");
-    toast({
-      title: "Success",
-      description: "Load type added successfully",
-    });
+      if (response.status === 201) {
+        const newLoadTypeData = response.data.loadType;
+        setLoadTypes(prev => [...prev, newLoadTypeData]);
+        setNewLoadType("");
+        toast({
+          title: "Success",
+          description: "Load type added successfully",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error adding load type:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to add load type",
+        variant: "destructive",
+      });
+    }
   };
 
-  const deleteLoadType = (id: string) => {
-    const updatedLoadTypes = loadTypes.filter(lt => lt.id !== id);
-    setLoadTypes(updatedLoadTypes);
-    
-    const allLoadTypes = JSON.parse(localStorage.getItem("loadTypes") || "[]");
-    const filteredLoadTypes = allLoadTypes.filter((lt: LoadType) => lt.id !== id);
-    localStorage.setItem("loadTypes", JSON.stringify(filteredLoadTypes));
-    
-    toast({
-      title: "Success",
-      description: "Load type deleted successfully",
-    });
+  const deleteLoadType = async (loadTypeId: string) => {
+    try {
+      const response = await loadTypeAPI.delete(loadTypeId);
+
+      if (response.status === 200) {
+        setLoadTypes(prev => prev.filter(lt => lt._id !== loadTypeId));
+        toast({
+          title: "Success",
+          description: "Load type deleted successfully",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error deleting load type:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete load type",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePayVendor = (vendor: any) => {
@@ -149,8 +184,12 @@ export default function CompanyDashboard() {
       });
       return;
     }
-    setSelectedVendor(vendor);
-    setPaymentDialogOpen(true);
+    
+    // TODO: Implement payment functionality when payment API is ready
+    toast({
+      title: "Payment System Coming Soon",
+      description: "Payment functionality will be available once the payment gateway is integrated.",
+    });
   };
 
   const handleEditVendor = (vendor: any) => {
@@ -159,53 +198,64 @@ export default function CompanyDashboard() {
   };
 
   const logPayment = (paymentData: Omit<PaymentData, "id" | "date" | "companyId">) => {
-    const vendor = vendors.find(v => v.id === paymentData.vendorId);
-    if (!vendor) {
-      toast({
-        title: "Error",
-        description: "Vendor not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const payment: Payment = {
-      id: Date.now().toString(),
-      ...paymentData,
-      date: new Date().toISOString(),
-      companyId: companyId!,
-      vendorName: vendor.name,
-      status: "Paid",
-    };
-
-    const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-    localStorage.setItem("payments", JSON.stringify([...allPayments, payment]));
-
-    setPayments(prevPayments => [...prevPayments, payment]);
-  };
-
-  const updateVendor = (updatedVendor: any) => {
-    const updatedVendors = vendors.map(v => v.id === updatedVendor.id ? updatedVendor : v);
-    setVendors(updatedVendors);
-    localStorage.setItem("vendors", JSON.stringify(updatedVendors));
+    // TODO: Implement payment logging when payment API is ready
     toast({
-      title: "Vendor Updated",
-      description: `${updatedVendor.name} has been updated successfully.`,
+      title: "Payment System Coming Soon",
+      description: "Payment logging will be available once the payment system is implemented.",
     });
   };
 
-  const deleteVendor = (vendorId: string) => {
-    // Filter out the vendor
-    const updatedVendors = vendors.filter(v => v.id !== vendorId);
-    setVendors(updatedVendors);
-    localStorage.setItem("vendors", JSON.stringify(updatedVendors));
+  const updateVendor = async (updatedVendor: any) => {
+    try {
+      const response = await vendorAPI.update(updatedVendor._id, {
+        name: updatedVendor.name,
+        accountHolderName: updatedVendor.accountHolderName,
+        accountNumber: updatedVendor.accountNumber,
+        ifscCode: updatedVendor.ifscCode,
+        phoneNumber: updatedVendor.phoneNumber,
+        vechicleNumber: updatedVendor.vechicleNumber || updatedVendor.vehicleNumbers || [],
+      });
 
-    // Filter out payments associated with the vendor
-    const updatedPayments = payments.filter(p => p.vendorId !== vendorId);
-    setPayments(updatedPayments);
-    const allPayments = JSON.parse(localStorage.getItem("payments") || "[]");
-    const filteredPayments = allPayments.filter((p: Payment) => p.vendorId !== vendorId);
-    localStorage.setItem("payments", JSON.stringify(filteredPayments));
+      if (response.status === 200) {
+        const updatedVendors = vendors.map(v => v._id === updatedVendor._id ? response.data.vendor : v);
+        setVendors(updatedVendors);
+        toast({
+          title: "Vendor Updated",
+          description: `${updatedVendor.name} has been updated successfully.`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error updating vendor:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update vendor",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteVendor = async (vendorId: string) => {
+    try {
+      const response = await vendorAPI.delete(vendorId);
+
+      if (response.status === 200) {
+        // Filter out the vendor
+        const updatedVendors = vendors.filter(v => v._id !== vendorId);
+        setVendors(updatedVendors);
+        
+        toast({
+          title: "Vendor Deleted",
+          description: "Vendor has been deleted successfully.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error deleting vendor:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete vendor",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSearch = () => {
@@ -213,8 +263,8 @@ export default function CompanyDashboard() {
       vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.accountHolderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.ifscCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (vendor.vehicleNumbers && vendor.vehicleNumbers.some(vn => vn.toLowerCase().includes(searchTerm.toLowerCase())))
+      vendor.phoneNumber.toString().includes(searchTerm.toLowerCase()) ||
+      (vendor.vechicleNumber && vendor.vechicleNumber.some((vn: string) => vn.toLowerCase().includes(searchTerm.toLowerCase())))
     );
     setFilteredVendors(searchResult);
   };
@@ -228,13 +278,13 @@ export default function CompanyDashboard() {
         const to = dateRange?.to ? new Date(dateRange.to.setHours(23, 59, 59, 999)) : null;
         
         if (from && to) {
-          return p.loadTypeId === loadType.id && paymentDate >= from && paymentDate <= to;
+          return p.loadTypeId === loadType._id && paymentDate >= from && paymentDate <= to;
         } else if (from) {
-          return p.loadTypeId === loadType.id && paymentDate >= from;
+          return p.loadTypeId === loadType._id && paymentDate >= from;
         } else if (to) {
-          return p.loadTypeId === loadType.id && paymentDate <= to;
+          return p.loadTypeId === loadType._id && paymentDate <= to;
         }
-        return p.loadTypeId === loadType.id;
+        return p.loadTypeId === loadType._id;
       })
       .reduce((sum, p) => sum + p.amount, 0);
     return {
@@ -243,6 +293,16 @@ export default function CompanyDashboard() {
     };
   }).filter(item => item.amount > 0);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading company dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!company) {
     return (
@@ -369,7 +429,17 @@ export default function CompanyDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="pl-2">
-                <ExpenseChart data={chartData} />
+                {payments.length === 0 ? (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <div className="text-center">
+                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Payment data will be available</p>
+                      <p className="text-sm">once the payment system is implemented</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ExpenseChart data={chartData} />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -407,12 +477,12 @@ export default function CompanyDashboard() {
                     </p>
                   ) : (
                     loadTypes.map(loadType => (
-                      <div key={loadType.id} className="flex items-center justify-between">
+                      <div key={loadType._id} className="flex items-center justify-between">
                         <Badge variant="secondary">{loadType.name}</Badge>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteLoadType(loadType.id)}
+                          onClick={() => deleteLoadType(loadType._id)}
                           className="h-6 w-6 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-3 w-3" />

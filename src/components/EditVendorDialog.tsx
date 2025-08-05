@@ -14,13 +14,14 @@ import { Plus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Vendor {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   accountHolderName: string;
-  bankAccountNumber: string;
+  accountNumber: string;
   ifscCode: string;
   phoneNumber: string;
-  vehicleNumbers: string[];
+  vechicleNumber: string[];
 }
 
 interface EditVendorDialogProps {
@@ -33,42 +34,42 @@ interface EditVendorDialogProps {
 export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: EditVendorDialogProps) {
   const [name, setName] = useState("");
   const [accountHolderName, setAccountHolderName] = useState("");
-  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [ifscCode, setIfscCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [vehicleNumbers, setVehicleNumbers] = useState<string[]>([""]);
+  const [vechicleNumber, setVechicleNumber] = useState<string[]>([""]);
 
   useEffect(() => {
     if (vendor) {
       setName(vendor.name);
       setAccountHolderName(vendor.accountHolderName);
-      setBankAccountNumber(vendor.bankAccountNumber);
+      setAccountNumber(vendor.accountNumber);
       setIfscCode(vendor.ifscCode);
       setPhoneNumber(vendor.phoneNumber);
-      setVehicleNumbers(vendor.vehicleNumbers.length > 0 ? vendor.vehicleNumbers : [""]);
+      setVechicleNumber(vendor.vechicleNumber.length > 0 ? vendor.vechicleNumber : [""]);
     }
   }, [vendor]);
 
   const handleAddVehicleNumber = () => {
-    setVehicleNumbers([...vehicleNumbers, ""]);
+    setVechicleNumber([...vechicleNumber, ""]);
   };
 
   const handleRemoveVehicleNumber = (index: number) => {
-    const newVehicleNumbers = vehicleNumbers.filter((_, i) => i !== index);
-    setVehicleNumbers(newVehicleNumbers);
+    const newVehicleNumbers = vechicleNumber.filter((_, i) => i !== index);
+    setVechicleNumber(newVehicleNumbers);
   };
 
   const handleVehicleNumberChange = (index: number, value: string) => {
-    const newVehicleNumbers = [...vehicleNumbers];
+    const newVehicleNumbers = [...vechicleNumber];
     newVehicleNumbers[index] = value;
-    setVehicleNumbers(newVehicleNumbers);
+    setVechicleNumber(newVehicleNumbers);
   };
 
   const validateAccountHolderName = (value: string) => {
     return /^[a-zA-Z\s]+$/.test(value);
   };
 
-  const validateBankAccountNumber = (value: string) => {
+  const validateAccountNumber = (value: string) => {
     return /^\d+$/.test(value);
   };
 
@@ -86,7 +87,7 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: E
     if (!vendor) return;
 
     // Validate all required fields
-    if (!name.trim() || !accountHolderName.trim() || !bankAccountNumber.trim() || !ifscCode.trim() || !phoneNumber.trim()) {
+    if (!name.trim() || !accountHolderName.trim() || !accountNumber.trim() || !ifscCode.trim() || !phoneNumber.trim()) {
       toast({
         title: "Error",
         description: "Please fill out all required fields.",
@@ -105,11 +106,11 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: E
       return;
     }
 
-    // Validate bank account number format
-    if (!validateBankAccountNumber(bankAccountNumber.trim())) {
+    // Validate account number format
+    if (!validateAccountNumber(accountNumber.trim())) {
       toast({
         title: "Error",
-        description: "Bank account number should only contain numbers.",
+        description: "Account number should only contain numbers.",
         variant: "destructive",
       });
       return;
@@ -137,12 +138,13 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: E
 
     onEditVendor({
       ...vendor,
+      _id: vendor._id || vendor.id,
       name: name.trim(),
       accountHolderName: accountHolderName.trim(),
-      bankAccountNumber: bankAccountNumber.trim(),
+      accountNumber: parseInt(accountNumber.trim()),
       ifscCode: ifscCode.trim().toUpperCase(),
-      phoneNumber: phoneNumber.trim(),
-      vehicleNumbers: vehicleNumbers.filter(vn => vn.trim() !== '')
+      phoneNumber: parseInt(phoneNumber.trim()),
+      vechicleNumber: vechicleNumber.filter(vn => vn.trim() !== '')
     });
     onOpenChange(false);
     toast({
@@ -181,11 +183,11 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: E
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="edit-bankAccountNumber">Bank Account Number</Label>
+              <Label htmlFor="edit-accountNumber">Account Number</Label>
               <Input
-                id="edit-bankAccountNumber"
-                value={bankAccountNumber}
-                onChange={(e) => setBankAccountNumber(e.target.value)}
+                id="edit-accountNumber"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
                 required
               />
             </div>
@@ -212,7 +214,7 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: E
             </div>
             <div className="space-y-2">
               <Label>Vehicle Numbers</Label>
-              {vehicleNumbers.map((vehicleNumber, index) => (
+              {vechicleNumber.map((vehicleNumber, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <Input
                     value={vehicleNumber}
@@ -221,7 +223,7 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onEditVendor }: E
                     }
                     placeholder={`Vehicle Number ${index + 1}`}
                   />
-                  {vehicleNumbers.length > 1 && (
+                  {vechicleNumber.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"

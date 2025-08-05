@@ -30,13 +30,14 @@ import { Input } from "@/components/ui/input";
 import { Users, Search, CreditCard, ChevronDown, Pencil, Trash2 } from "lucide-react";
 
 interface Vendor {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   accountHolderName: string;
-  bankAccountNumber: string;
+  accountNumber: string;
   ifscCode: string;
   phoneNumber: string;
-  vehicleNumbers: string[];
+  vechicleNumber: string[];
 }
 
 interface SelectedVehicleNumbers {
@@ -114,20 +115,20 @@ export function VendorList({ vendors, searchTerm, onSearchTermChange, onEditVend
             </TableHeader>
             <TableBody>
               {vendors.map((vendor) => (
-                <TableRow key={vendor.id}>
+                <TableRow key={vendor._id || vendor.id}>
                   <TableCell className="font-medium">{vendor.name}</TableCell>
                   <TableCell>
-                    {vendor.vehicleNumbers && vendor.vehicleNumbers.length > 0 ? (
+                    {vendor.vechicleNumber && vendor.vechicleNumber.length > 0 ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-full justify-between font-normal">
-                            {selectedVehicleNumbers[vendor.id] || vendor.vehicleNumbers[0]}
+                            {selectedVehicleNumbers[vendor._id || vendor.id] || vendor.vechicleNumber[0]}
                             <ChevronDown className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-48">
-                          {vendor.vehicleNumbers.map((vn, index) => (
-                            <DropdownMenuItem key={index} onSelect={() => handleVehicleNumberSelect(vendor.id, vn)}>{vn}</DropdownMenuItem>
+                          {vendor.vechicleNumber.map((vn, index) => (
+                            <DropdownMenuItem key={index} onSelect={() => handleVehicleNumberSelect(vendor._id || vendor.id, vn)}>{vn}</DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -136,7 +137,7 @@ export function VendorList({ vendors, searchTerm, onSearchTermChange, onEditVend
                     )}
                   </TableCell>
                   <TableCell>{vendor.accountHolderName}</TableCell>
-                  <TableCell className="font-mono text-right">{vendor.bankAccountNumber}</TableCell>
+                  <TableCell className="font-mono text-right">{vendor.accountNumber}</TableCell>
                   <TableCell className="font-mono text-sm text-right">{vendor.ifscCode}</TableCell>
                   <TableCell className="text-right">{vendor.phoneNumber}</TableCell>
                   {showActionsColumn && (
@@ -170,7 +171,7 @@ export function VendorList({ vendors, searchTerm, onSearchTermChange, onEditVend
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteVendor(vendor.id)}>
+                                <AlertDialogAction onClick={() => onDeleteVendor(vendor._id || vendor.id)}>
                                   Continue
                                 </AlertDialogAction>
                               </AlertDialogFooter>

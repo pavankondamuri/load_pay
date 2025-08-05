@@ -10,16 +10,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Payment } from "@/lib/payment";
-import { IndianRupee } from "lucide-react";
+import { IndianRupee, Clock } from "lucide-react";
 
 const PaymentHistoryList = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedPayments = JSON.parse(
-      localStorage.getItem("payments") || "[]"
-    );
-    setPayments(storedPayments);
+    // TODO: Replace with actual API call when payment system is implemented
+    // For now, show empty state
+    setIsLoading(false);
   }, []);
 
   const formatToIST = (dateString: string) => {
@@ -35,50 +35,63 @@ const PaymentHistoryList = () => {
     });
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
-    <Table>
-      <TableCaption>A list of your recent payments.</TableCaption>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Vehicle Number</TableHead>
-          <TableHead>Vendor</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Date</TableHead>          
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {payments.length > 0 ? (
-          payments.map((payment: Payment) => (
-            <TableRow key={payment.id}>
-              <TableCell>{payment.vehicleNumber}</TableCell>
-              <TableCell>{payment.vendorName}</TableCell>
-              <TableCell><IndianRupee className="inline-block mr-1 h-4 w-4"/>{payment.amount.toFixed(2)}</TableCell>
-              <TableCell>{formatToIST(payment.date)}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    payment.status === "Paid"
-                      ? "default"
-                      : payment.status === "Pending"
-                      ? "secondary"
-                      : "destructive"
-                  }
-                >
-                  {payment.status}
-                </Badge>
-              </TableCell>
+    <div>
+      {payments.length === 0 ? (
+        <div className="text-center py-12">
+          <Clock className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-muted-foreground mb-2">Payment History Coming Soon</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Payment history will be available once the payment system is fully integrated. 
+            All your payment records will be securely stored and accessible here.
+          </p>
+        </div>
+      ) : (
+        <Table>
+          <TableCaption>A list of your recent payments.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vehicle Number</TableHead>
+              <TableHead>Vendor</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Date</TableHead>          
+              <TableHead>Status</TableHead>
             </TableRow>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center">
-              No payments found.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+          </TableHeader>
+          <TableBody>
+            {payments.map((payment: Payment) => (
+              <TableRow key={payment.id}>
+                <TableCell>{payment.vehicleNumber}</TableCell>
+                <TableCell>{payment.vendorName}</TableCell>
+                <TableCell><IndianRupee className="inline-block mr-1 h-4 w-4"/>{payment.amount.toFixed(2)}</TableCell>
+                <TableCell>{formatToIST(payment.date)}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      payment.status === "Paid"
+                        ? "default"
+                        : payment.status === "Pending"
+                        ? "secondary"
+                        : "destructive"
+                    }
+                  >
+                    {payment.status}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
   );
 };
 

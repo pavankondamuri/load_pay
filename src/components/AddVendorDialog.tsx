@@ -1,18 +1,11 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { vendorAPI } from "@/lib/api";
 
 export function AddVendorDialog() {
   const [open, setOpen] = useState(false);
@@ -21,15 +14,89 @@ export function AddVendorDialog() {
   const [accountNumber, setAccountNumber] = useState("");
   const [ifscCode, setIfscCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [vehicleNumbers, setVehicleNumbers] = useState<string[]>([""]);
+  const [vehicleNumbers, setVehicleNumbers] = useState([""]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const validateIfscCode = (code: string) => {
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    return ifscRegex.test(code);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name.trim() || !accountHolderName.trim() || !accountNumber.trim() || !ifscCode.trim() || !phoneNumber.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill out all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateIfscCode(ifscCode.trim())) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid IFSC code.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // id: string;
+    // name: string;
+    // accountHolderName: string;
+    // accountNumber: string;
+    // ifscCode: string;
+    // phoneNumber: string;
+    // vechicleNumber: string[];
+
+    setIsLoading(true);
+    try {
+      const response = await vendorAPI.create({
+        name: name.trim(),
+        accountHolderName: accountHolderName.trim(),
+        accountNumber: parseInt(accountNumber.trim()),
+        ifscCode: ifscCode.trim().toUpperCase(),
+        phoneNumber: parseInt(phoneNumber.trim()),
+        vechicleNumber: vehicleNumbers.filter(vn => vn.trim() !== ''),
+      });
+
+      if (response.status === 201) {
+        setOpen(false);
+        
+        // Reset form
+        setName("");
+        setAccountHolderName("");
+        setAccountNumber("");
+        setIfscCode("");
+        setPhoneNumber("");
+        setVehicleNumbers([""]);
+        
+        toast({
+          title: "Vendor Added",
+          description: `${name} has been added successfully.`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error adding vendor:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to add vendor. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleAddVehicleNumber = () => {
     setVehicleNumbers([...vehicleNumbers, ""]);
   };
 
   const handleRemoveVehicleNumber = (index: number) => {
-    const newVehicleNumbers = vehicleNumbers.filter((_, i) => i !== index);
-    setVehicleNumbers(newVehicleNumbers);
+    if (vehicleNumbers.length > 1) {
+      setVehicleNumbers(vehicleNumbers.filter((_, i) => i !== index));
+    }
   };
 
   const handleVehicleNumberChange = (index: number, value: string) => {
@@ -38,137 +105,84 @@ export function AddVendorDialog() {
     setVehicleNumbers(newVehicleNumbers);
   };
 
-  const validateAccountHolderName = (value: string) => {
-    return /^[a-zA-Z\s]+$/.test(value);
-  };
-
-  const validateBankAccountNumber = (value: string) => {
-    return /^\d+$/.test(value);
-  };
-
-  const validatePhoneNumber = (value: string) => {
-    return /^\d{10}$/.test(value);
-  };
-
-  const validateIfscCode = (value: string) => {
-    // IFSC format: 4 letters + 1 zero + 6 alphanumeric characters
-    return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(value.toUpperCase());
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !accountHolderName.trim() || !accountNumber.trim() || !ifscCode.trim()) {
-      toast({
-        title: "Error",
-        description: "Please fill out all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const newVendor = {
-      id: Date.now().toString(),
-      name,
-      accountHolderName,
-      accountNumber,
-      ifscCode,
-      phoneNumber,
-      vehicleNumbers: vehicleNumbers.filter(vn => vn.trim() !== ''),
-    };
-    const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
-    localStorage.setItem("vendors", JSON.stringify([...allVendors, newVendor]));
-    setOpen(false);
-    // Reset form
-    setName("");
-    setAccountHolderName("");
-    setAccountNumber("");
-    setIfscCode("");
-    setPhoneNumber("");
-    setVehicleNumbers([""]);
-    toast({
-      title: "Vendor Added",
-      description: `${name} has been added to the global vendor list.`,
-    });
-  };
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full sm:w-auto" size="lg">
-          <Users className="mr-2 h-5 w-5" />
-          Add Vendor
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add a New Global Vendor</DialogTitle>
-          <DialogDescription>
-            This vendor will be available across all your companies.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="max-h-96 overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-4 pr-6">
-            <div className="space-y-1">
-              <Label htmlFor="name">Vendor Name</Label>
+    <>
+      <Button onClick={() => setOpen(true)} variant="outline" className="flex items-center gap-2">
+        <Plus className="h-4 w-4" />
+        Add Vendor
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Vendor</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Vendor Name *</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder="Enter vendor name"
                 required
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="accountHolderName">Account Holder Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="accountHolderName">Account Holder Name *</Label>
               <Input
                 id="accountHolderName"
                 value={accountHolderName}
                 onChange={(e) => setAccountHolderName(e.target.value)}
+                placeholder="Enter account holder name"
                 required
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account Number *</Label>
               <Input
-                id="bankAccountNumber"
+                id="accountNumber"
+                type="number"
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="Enter account number"
                 required
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="ifscCode">IFSC Code</Label>
+            <div className="space-y-2">
+              <Label htmlFor="ifscCode">IFSC Code *</Label>
               <Input
                 id="ifscCode"
                 value={ifscCode}
-                onChange={(e) => setIfscCode(e.target.value)}
+                onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                placeholder="Enter IFSC code"
+                maxLength={11}
                 required
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="phoneNumber">Phone Number</Label>
-
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number *</Label>
               <Input
                 id="phoneNumber"
+                type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                maxLength={10}
+                placeholder="Enter phone number"
                 required
               />
             </div>
             <div className="space-y-2">
               <Label>Vehicle Numbers</Label>
               {vehicleNumbers.map((vehicleNumber, index) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={index} className="flex space-x-2">
                   <Input
                     value={vehicleNumber}
-                    onChange={(e) =>
-                      handleVehicleNumberChange(index, e.target.value)
-                    }
-                    placeholder={`Vehicle Number ${index + 1}`}
+                    onChange={(e) => handleVehicleNumberChange(index, e.target.value)}
+                    placeholder={`Vehicle number ${index + 1}`}
                   />
                   {vehicleNumbers.length > 1 && (
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => handleRemoveVehicleNumber(index)}
                     >
@@ -180,19 +194,24 @@ export function AddVendorDialog() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={handleAddVehicleNumber}
+                className="w-full"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Another Vehicle
+                <Plus className="h-4 w-4 mr-2" />
+                Add Vehicle Number
               </Button>
             </div>
-            <DialogFooter className="pt-4">
-              <Button type="submit">Add Vendor</Button>
-            </DialogFooter>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Adding..." : "Add Vendor"}
+              </Button>
+            </div>
           </form>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

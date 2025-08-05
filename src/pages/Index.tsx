@@ -28,19 +28,16 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Vendor } from "@/lib/vender";
 import { PaymentDialog } from "@/components/PaymentDialog";
-import axios from "axios";
+import { companyAPI, vendorAPI } from "@/lib/api";
 
 interface Company {
-  id?: string;
+  _id?: string;
   companyName: string;
   description: string;
   ownerName?: string;
   email?: string;
   phoneNumber?: string;
-  _id?: string;
 }
-
-
 
 const Index = () => {
   const navigate = useNavigate();
@@ -57,95 +54,122 @@ const Index = () => {
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(true);
 
   const { logout } = useAuth();
 
-  // Load data from localStorage on component mount
+  // Load data from backend APIs
   useEffect(() => {
-    const allVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
-
-    const allCompanies = async()=>{ 
-     const  res = await axios.get("http://localhost:3000/api/company/get",{
-      headers:{
-        Authorization: `Bearer ${localStorage.getItem("token")}`
-      }
-     });
-     return res.data.compines;
-    };
-    allCompanies().then(res=>{
-      setCompanies(res);
-      setFilteredCompanies(res);
-    });
-    console.log(companies,"companies");
-    setVendors(allVendors);
-    setFilteredVendors(allVendors);
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      // Load companies
+      const companiesResponse = await companyAPI.getAll();
+      const companiesData = companiesResponse.data.compines || [];
+      setCompanies(companiesData);
+      setFilteredCompanies(companiesData);
+
+      // Load vendors
+      const vendorsResponse = await vendorAPI.getAll();
+      const vendorsData = vendorsResponse.data.vendors || [];
+      setVendors(vendorsData);
+      setFilteredVendors(vendorsData);
+    } catch (error: any) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load data. Please refresh the page.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     handleVendorSearch();
   }, [vendorSearchTerm, vendors]);
 
-  const addCompany = (companyData: { companyName: string; description: string, ownerName?: string, email?: string, phoneNumber?: string, }) => {
-    const newCompany: Company = {
-      id: Date.now().toString(),
-      ...companyData,
-    };
-    
-    const updatedCompanies = [...companies, newCompany];
-    setCompanies(updatedCompanies);
-    localStorage.setItem("companies", JSON.stringify(updatedCompanies));
+  const addCompany = (companyData: Company) => {
+    setCompanies(prev => [...prev, companyData]);
+    setFilteredCompanies(prev => [...prev, companyData]);
   };
 
   const handleEditCompany = (companyId: string) => {
-    const company = companies.find((c) => c.id === companyId);
+    const company = companies.find((c) => c._id === companyId);
     if (company) {
       setSelectedCompany(company);
       setEditCompanyOpen(true);
     }
   };
 
-  const handleUpdateCompany = (updatedCompany: Company) => {
-    const updatedCompanies = companies.map((company) =>
-      company.id === updatedCompany.id ? updatedCompany : company
-    );
-    setCompanies(updatedCompanies);
-    
-    const searchResult = updatedCompanies.filter((company) =>
-      company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
-    );
-    setFilteredCompanies(searchResult);
-    
-    localStorage.setItem("companies", JSON.stringify(updatedCompanies));
+  const handleUpdateCompany = async (updatedCompany: Company) => {
+    try {
+      const response = await companyAPI.update(updatedCompany._id!, {
+        companyName: updatedCompany.companyName,
+        ownerName: updatedCompany.ownerName,
+        email: updatedCompany.email,
+        phoneNumber: updatedCompany.phoneNumber,
+        description: updatedCompany.description,
+      });
+
+      if (response.status === 200) {
+        const updatedCompanies = companies.map((company) =>
+          company._id === updatedCompany._id ? response.data.company : company
+        );
+        setCompanies(updatedCompanies);
+        
+        const searchResult = updatedCompanies.filter((company) =>
+          company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
+        );
+        setFilteredCompanies(searchResult);
+        
+        toast({
+          title: "Company Updated",
+          description: "The company has been successfully updated.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error updating company:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update company.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteCompany = (companyId: string) => {
-    const updatedCompanies = companies.filter(
-      (company) => company.id !== companyId
-    );
-    setCompanies(updatedCompanies);
+  const handleDeleteCompany = async (companyId: string) => {
+    try {
+      const response = await companyAPI.delete(companyId);
 
-    const searchResult = updatedCompanies.filter((company) =>
-      company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
-    );
-    setFilteredCompanies(searchResult);
+      if (response.status === 200) {
+        const updatedCompanies = companies.filter(
+          (company) => company._id !== companyId
+        );
+        setCompanies(updatedCompanies);
 
-    localStorage.setItem("companies", JSON.stringify(updatedCompanies));
-    toast({
-      title: "Company Deleted",
-      description: "The company has been successfully deleted.",
-    });
-  };
+        const searchResult = updatedCompanies.filter((company) =>
+          company.companyName.toLowerCase().includes(companySearchTerm.toLowerCase())
+        );
+        setFilteredCompanies(searchResult);
 
-  const addVendor = (vendorData: { name: string; accountHolderName: string; accountNumber: string; ifscCode: string; phoneNumber: string; vehicleNumbers: string[]; }) => {
-    const newVendor = {
-      id: Date.now().toString(),
-      ...vendorData,
-    };
-    
-    const updatedVendors = [...vendors, newVendor];
-    setVendors(updatedVendors);
-    localStorage.setItem("vendors", JSON.stringify(updatedVendors));
+        toast({
+          title: "Company Deleted",
+          description: "The company has been successfully deleted.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error deleting company:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete company.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditVendor = (vendor: any) => {
@@ -153,45 +177,80 @@ const Index = () => {
     setIsEditMode(true);
     setIsEditDialogOpen(true);
   };
-  // const handleEditVendor = (vendor: Vendor) => {
-  //   setSelectedVendor(vendor);
-  //   setEditVendorOpen(true);
-  // };
 
-  const handleUpdateVendor = (updatedVendor: any) => {
-    const updatedVendors = vendors.map((vendor) =>
-      vendor.id === updatedVendor.id ? updatedVendor : vendor
-    );
-    setVendors(updatedVendors);
-    const searchResult = updatedVendors.filter(
-      (vendor) =>
-        vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.accountHolderName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.ifscCode.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.phoneNumber.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        (vendor.vehicleNumbers && vendor.vehicleNumbers.some(vn => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
-    );
-    setFilteredVendors(searchResult);
-    localStorage.setItem("vendors", JSON.stringify(updatedVendors));
+  const handleUpdateVendor = async (updatedVendor: any) => {
+    try {
+      const response = await vendorAPI.update(updatedVendor._id, {
+        name: updatedVendor.name,
+        accountHolderName: updatedVendor.accountHolderName,
+        accountNumber: updatedVendor.accountNumber,
+        ifscCode: updatedVendor.ifscCode,
+        phoneNumber: updatedVendor.phoneNumber,
+        vechicleNumber: updatedVendor.vechicleNumber || updatedVendor.vehicleNumbers || [],
+      });
+
+      if (response.status === 200) {
+        const updatedVendors = vendors.map((vendor) =>
+          vendor._id === updatedVendor._id ? response.data.vendor : vendor
+        );
+        setVendors(updatedVendors);
+        
+        const searchResult = updatedVendors.filter(
+          (vendor) =>
+            vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+            vendor.accountHolderName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+            vendor.ifscCode.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+            vendor.phoneNumber.toString().includes(vendorSearchTerm.toLowerCase()) ||
+            (vendor.vechicleNumber && vendor.vechicleNumber.some((vn: string) => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
+        );
+        setFilteredVendors(searchResult);
+        
+        toast({
+          title: "Vendor Updated",
+          description: `${updatedVendor.name} has been updated successfully.`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error updating vendor:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update vendor.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteVendor = (vendorId: string) => {
-    const updatedVendors = vendors.filter((vendor) => vendor.id !== vendorId);
-    setVendors(updatedVendors);
-    const searchResult = updatedVendors.filter(
-      (vendor) =>
-        vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.accountHolderName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.ifscCode.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.phoneNumber.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        (vendor.vehicleNumbers && vendor.vehicleNumbers.some(vn => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
-    );
-    setFilteredVendors(searchResult);
-    localStorage.setItem("vendors", JSON.stringify(updatedVendors));
-    toast({
-      title: "Vendor Deleted",
-      description: "The vendor has been successfully deleted.",
-    });
+  const handleDeleteVendor = async (vendorId: string) => {
+    try {
+      const response = await vendorAPI.delete(vendorId);
+
+      if (response.status === 200) {
+        const updatedVendors = vendors.filter((vendor) => vendor._id !== vendorId);
+        setVendors(updatedVendors);
+        
+        const searchResult = updatedVendors.filter(
+          (vendor) =>
+            vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+            vendor.accountHolderName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+            vendor.ifscCode.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+            vendor.phoneNumber.toString().includes(vendorSearchTerm.toLowerCase()) ||
+            (vendor.vechicleNumber && vendor.vechicleNumber.some((vn: string) => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
+        );
+        setFilteredVendors(searchResult);
+        
+        toast({
+          title: "Vendor Deleted",
+          description: "The vendor has been successfully deleted.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error deleting vendor:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete vendor.",
+        variant: "destructive",
+      });
+    }
   };
 
   const viewCompany = (companyId: string) => {
@@ -204,8 +263,8 @@ const Index = () => {
         vendor.name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
         vendor.accountHolderName.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
         vendor.ifscCode.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        vendor.phoneNumber.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
-        (vendor.vehicleNumbers && vendor.vehicleNumbers.some(vn => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
+        vendor.phoneNumber.toString().includes(vendorSearchTerm.toLowerCase()) ||
+        (vendor.vechicleNumber && vendor.vechicleNumber.some((vn: string) => vn.toLowerCase().includes(vendorSearchTerm.toLowerCase())))
     );
     setFilteredVendors(searchResult);
   };
@@ -216,6 +275,17 @@ const Index = () => {
     );
     setFilteredCompanies(searchResult);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -278,8 +348,8 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {filteredCompanies.map(company => (
                 <CompanyCard
-                  key={company.id}
-                  id={company.id}
+                  key={company._id}
+                  id={company._id}
                   companyName={company.companyName}
                   description={company.description}
                   ownerName={company.ownerName}

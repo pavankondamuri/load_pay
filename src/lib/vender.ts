@@ -1,10 +1,11 @@
 export interface Vendor {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   accountHolderName: string;
   accountNumber: string;
   ifscCode: string;
   phoneNumber: string;
-  vehicleNumbers: string[];
+  vechicleNumber: string[];
 }
   

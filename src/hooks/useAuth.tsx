@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
+import { authAPI } from '@/lib/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -12,37 +12,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('isAuthenticated') === 'true';
+    return !!localStorage.getItem('token');
   });
 
   useEffect(() => {
-    localStorage.setItem('isAuthenticated', isAuthenticated.toString());
-  }, [isAuthenticated]);
+    // Check if token exists on mount
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+  }, []);
   
-  const login =  async (email: string, pass: string) => {
-    const response=await axios.post("http://localhost:3000/api/user/login",{email,password:pass})
-    console.log(response,"response login")
-    if(response.status===200){
-      setIsAuthenticated(true);
-      localStorage.setItem("token",response.data.token);
+  const login = async (email: string, pass: string) => {
+    try {
+      const response = await authAPI.login(email, pass);
+      
+      if (response.status === 200) {
+        localStorage.setItem("token", response.data.token);
+        setIsAuthenticated(true);
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      throw new Error(error.response?.data?.message || "Login failed");
     }
   };
 
   const logout = () => {
+    // Clear token from localStorage
+    localStorage.removeItem("token");
     setIsAuthenticated(false);
+    
+    // Optional: Call logout API
+    authAPI.logout().catch(console.error);
   };
 
-  const signup =  async (email: string, pass: string) => {
-    const response=await axios.post("http://localhost:3000/api/user/register",{email,password:pass})
-    // const users = JSON.parse(localStorage.getItem('users') || '[]');
-    // const userExists = users.some((u: any) => u.email === email);
-    // if (userExists) {
-    //   throw new Error('User with this email already exists');
-    // }
-    console.log(response,"response singup")
-    // const newUser = { email, password: pass };
-    // localStorage.setItem('users', JSON.stringify([...users, newUser]));
-    setIsAuthenticated(true);
+  const signup = async (email: string, pass: string) => {
+    try {
+      const response = await authAPI.register(email, pass);
+      
+      if (response.status === 200) {
+        // After successful signup, automatically log in
+        await login(email, pass);
+      }
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      throw new Error(error.response?.data?.message || "Signup failed");
+    }
   };
 
   return (
