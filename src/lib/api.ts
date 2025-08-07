@@ -133,6 +133,7 @@ export const paymentAPI = {
   getPaymentHistory: (filters?: {
     vendorName?: string;
     companyName?: string;
+    companyId?: string;
     status?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -140,6 +141,7 @@ export const paymentAPI = {
     amountMax?: number;
     vehicleNumber?: string;
     loadTypeId?: string;
+    globalSearch?: string;
     page?: number;
     limit?: number;
   }) => 

@@ -10,10 +10,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
-import { ArrowLeft, Search, Filter, Calendar as CalendarIcon, IndianRupee, Download } from "lucide-react";
+import { ArrowLeft, Search, Filter, Calendar as CalendarIcon, IndianRupee, Download, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { paymentAPI } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Payment {
   _id: string;
@@ -71,29 +77,43 @@ export default function PaymentHistory() {
     amountMax: "",
     vehicleNumber: "",
     loadTypeId: "",
+    globalSearch: "", // Add separate global search field
     page: 1,
     limit: 20
   });
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [globalSearch, setGlobalSearch] = useState("");
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [quickDateFilter, setQuickDateFilter] = useState<string>("");
+  const [searchInput, setSearchInput] = useState(""); // Separate state for search input
 
   useEffect(() => {
     loadPaymentHistory();
     loadPaymentStats();
   }, [filters]);
 
+  // Sync search input with current filter value
+  useEffect(() => {
+    setSearchInput(filters.globalSearch);
+  }, [filters.globalSearch]);
+
   const loadPaymentHistory = async () => {
     setIsLoading(true);
     try {
-      const response = await paymentAPI.getPaymentHistory({
+      const apiParams: any = {
         ...filters,
         page: filters.page,
         limit: filters.limit,
         amountMin: filters.amountMin ? Number(filters.amountMin) : undefined,
         amountMax: filters.amountMax ? Number(filters.amountMax) : undefined,
-      });
+      };
+      
+      // Add global search if it exists
+      if (filters.globalSearch) {
+        apiParams.globalSearch = filters.globalSearch;
+      }
+      
+      const response = await paymentAPI.getPaymentHistory(apiParams);
       
       setPayments(response.data.payments);
       setPagination(response.data.pagination);
@@ -139,6 +159,81 @@ export default function PaymentHistory() {
     }));
   };
 
+  const handleQuickDateFilter = (filterType: string) => {
+    setQuickDateFilter(filterType);
+    const today = new Date();
+    let dateFrom = "";
+    let dateTo = "";
+    
+    switch (filterType) {
+      case "today":
+        dateFrom = today.toISOString().split('T')[0];
+        dateTo = today.toISOString().split('T')[0];
+        break;
+      case "yesterday":
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        dateFrom = yesterday.toISOString().split('T')[0];
+        dateTo = yesterday.toISOString().split('T')[0];
+        break;
+      case "week":
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        dateFrom = weekStart.toISOString().split('T')[0];
+        dateTo = today.toISOString().split('T')[0];
+        break;
+      case "month":
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        dateFrom = monthStart.toISOString().split('T')[0];
+        dateTo = today.toISOString().split('T')[0];
+        break;
+      case "lastMonth":
+        const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+        dateFrom = lastMonthStart.toISOString().split('T')[0];
+        dateTo = lastMonthEnd.toISOString().split('T')[0];
+        break;
+      case "quarter":
+        const quarter = Math.floor(today.getMonth() / 3);
+        const quarterStart = new Date(today.getFullYear(), quarter * 3, 1);
+        dateFrom = quarterStart.toISOString().split('T')[0];
+        dateTo = today.toISOString().split('T')[0];
+        break;
+      case "year":
+        const yearStart = new Date(today.getFullYear(), 0, 1);
+        dateFrom = yearStart.toISOString().split('T')[0];
+        dateTo = today.toISOString().split('T')[0];
+        break;
+      case "custom":
+        // Reset to custom date range
+        setDateRange(undefined);
+        setFilters(prev => ({
+          ...prev,
+          dateFrom: "",
+          dateTo: "",
+          page: 1
+        }));
+        return;
+      default:
+        // Clear date filters
+        dateFrom = "";
+        dateTo = "";
+        break;
+    }
+    
+    setDateRange({
+      from: dateFrom ? new Date(dateFrom) : undefined,
+      to: dateTo ? new Date(dateTo) : undefined
+    });
+    
+    setFilters(prev => ({
+      ...prev,
+      dateFrom,
+      dateTo,
+      page: 1
+    }));
+  };
+
   const clearFilters = () => {
     setFilters({
       vendorName: "",
@@ -150,22 +245,27 @@ export default function PaymentHistory() {
       amountMax: "",
       vehicleNumber: "",
       loadTypeId: "",
+      globalSearch: "",
       page: 1,
       limit: 20
     });
     setDateRange(undefined);
-    setGlobalSearch("");
+    setQuickDateFilter("");
+    setSearchInput("");
   };
 
-  const handleGlobalSearch = (searchTerm: string) => {
-    setGlobalSearch(searchTerm);
+  const handleGlobalSearch = () => {
+    // Only apply search when this function is called (by search button)
     setFilters(prev => ({
       ...prev,
-      vendorName: searchTerm,
-      companyName: searchTerm,
-      vehicleNumber: searchTerm,
+      globalSearch: searchInput,
       page: 1
     }));
+  };
+
+  const handleSearchInputChange = (value: string) => {
+    // Only update the input state, don't trigger API call
+    setSearchInput(value);
   };
 
   const formatToIST = (dateString: string) => {
@@ -230,7 +330,8 @@ export default function PaymentHistory() {
     if (filters.amountMin || filters.amountMax) count++;
     if (filters.vehicleNumber) count++;
     if (filters.loadTypeId) count++;
-    if (globalSearch) count++;
+    if (filters.globalSearch) count++;
+    if (quickDateFilter) count++;
     return count;
   };
 
@@ -243,7 +344,18 @@ export default function PaymentHistory() {
     if (filters.amountMin || filters.amountMax) activeFilters.push('Amount Range');
     if (filters.vehicleNumber) activeFilters.push(`Vehicle: ${filters.vehicleNumber}`);
     if (filters.loadTypeId) activeFilters.push(`Load Type: ${filters.loadTypeId}`);
-    if (globalSearch) activeFilters.push(`Search: ${globalSearch}`);
+    if (filters.globalSearch) activeFilters.push(`Search: ${filters.globalSearch}`);
+    if (quickDateFilter) {
+      const filterText = quickDateFilter === "today" ? "Today" :
+                        quickDateFilter === "yesterday" ? "Yesterday" :
+                        quickDateFilter === "week" ? "This Week" :
+                        quickDateFilter === "month" ? "This Month" :
+                        quickDateFilter === "lastMonth" ? "Last Month" :
+                        quickDateFilter === "quarter" ? "This Quarter" :
+                        quickDateFilter === "year" ? "This Year" :
+                        quickDateFilter === "custom" ? "Custom Range" : quickDateFilter;
+      activeFilters.push(`Quick Date: ${filterText}`);
+    }
     return activeFilters;
   };
 
@@ -348,14 +460,83 @@ export default function PaymentHistory() {
               <CardTitle className="flex items-center space-x-2">
                 <Filter className="h-5 w-5" />
                 <span>Filters</span>
+                {getActiveFiltersCount() > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {getActiveFiltersCount()} active
+                  </Badge>
+                )}
+                {isLoading && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary ml-2"></div>
+                )}
               </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsFilterVisible(!isFilterVisible)}
-              >
-                {isFilterVisible ? "Hide Filters" : "Show Filters"}
-              </Button>
+              <div className="flex items-center space-x-2">
+                {/* Quick Date Filter Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant={quickDateFilter ? "default" : "outline"} 
+                      size="sm" 
+                      className="flex items-center space-x-2"
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                      <span>
+                        {quickDateFilter ? 
+                          (quickDateFilter === "today" ? "Today" :
+                           quickDateFilter === "yesterday" ? "Yesterday" :
+                           quickDateFilter === "week" ? "This Week" :
+                           quickDateFilter === "month" ? "This Month" :
+                           quickDateFilter === "lastMonth" ? "Last Month" :
+                           quickDateFilter === "quarter" ? "This Quarter" :
+                           quickDateFilter === "year" ? "This Year" :
+                           quickDateFilter === "custom" ? "Custom Range" : "Quick Date") 
+                          : "Quick Date"
+                        }
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("today")}>
+                      Today
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("yesterday")}>
+                      Yesterday
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("week")}>
+                      This Week
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("month")}>
+                      This Month
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("lastMonth")}>
+                      Last Month
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("quarter")}>
+                      This Quarter
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("year")}>
+                      This Year
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("custom")}>
+                      Custom Range
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleQuickDateFilter("")}>
+                      Clear Date
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {/* <Button
+                  variant={isFilterVisible ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setIsFilterVisible(!isFilterVisible)}
+                  className="flex items-center space-x-2 hover:scale-105 transition-transform"
+                  disabled={isLoading}
+                >
+                  <Filter className="h-4 w-4" />
+                  <span>{isFilterVisible ? "Hide Filters" : "Show Filters"}</span>
+                </Button> */}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -367,10 +548,39 @@ export default function PaymentHistory() {
                 <Input
                   id="globalSearch"
                   placeholder="Search across vendors, companies, vehicles..."
-                  value={globalSearch}
-                  onChange={(e) => handleGlobalSearch(e.target.value)}
-                  className="pl-10"
+                  value={searchInput}
+                  onChange={(e) => handleSearchInputChange(e.target.value)}
+                  className="pl-10 pr-20"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleGlobalSearch();
+                    }
+                  }}
                 />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                  {searchInput && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchInput("");
+                        setFilters(prev => ({ ...prev, globalSearch: "", page: 1 }));
+                      }}
+                      className="h-6 w-6 p-0"
+                    >
+                      ×
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGlobalSearch}
+                    disabled={!searchInput.trim() || isLoading}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Search
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -505,7 +715,12 @@ export default function PaymentHistory() {
             <CardTitle>Payment Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            {payments.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading payments...</p>
+              </div>
+            ) : payments.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">No payments found matching your filters.</p>
               </div>

@@ -45,8 +45,11 @@ interface SelectedVehicleNumbers {
 }
 
 interface LoadType {
-  id: string;
+  _id: string;
   name: string;
+  companyId: string;
+  description?: string;
+  isActive: boolean;
 }
 
 interface VendorListProps {

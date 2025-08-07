@@ -11,13 +11,21 @@ import { Calendar } from "@/components/ui/calendar";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { EditVendorDialog } from "@/components/EditVendorDialog";
-import { ArrowLeft, Plus, Search, CreditCard, Trash2, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft, Plus, Search, CreditCard, Trash2, Calendar as CalendarIcon, Clock, TrendingUp, TrendingDown, DollarSign, Users, Truck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { DateRange } from "react-day-picker";
 import { VendorList } from "@/components/VendorList";
 import { Calculator } from "@/components/Calculator";
-import { companyAPI, vendorAPI, loadTypeAPI } from "@/lib/api";
+import { companyAPI, vendorAPI, loadTypeAPI, paymentAPI } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface Company {
  _id?: string;
@@ -39,19 +47,31 @@ interface LoadType {
   isActive: boolean;
 }
 
-interface Payment extends PaymentData {
+interface Payment {
+  _id: string;
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
   vendorName: string;
+  vendorId: string;
+  companyName: string;
+  companyId: string;
+  amount: number;
   status: "Paid" | "Pending" | "Failed";
+  date: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  vehicleNumbers: string[];
+  loadTypeId?: string;
+  loadTypeName?: string;
 }
 
-interface PaymentData {
-  id: string;
-  vendorId: string;
-  amount: number;
-  loadTypeId: string;
-  date: string;
-  companyId: string;
-  vehicleNumber?: string;
+interface PaymentStats {
+  totalAmount: number;
+  totalPayments: number;
+  avgAmount: number;
+  minAmount: number;
+  maxAmount: number;
 }
 
 export default function CompanyDashboard() {
@@ -63,6 +83,7 @@ export default function CompanyDashboard() {
   const [vendors, setVendors] = useState<any[]>([]);
   const [loadTypes, setLoadTypes] = useState<LoadType[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
   const [newLoadType, setNewLoadType] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
@@ -75,11 +96,19 @@ export default function CompanyDashboard() {
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
   });
+  const [openPopup, setOpenPopup] = useState<null | 'expenses' | 'average' | 'vendors' | 'loadTypes' | 'calculator'>(null);
 
   // Load data from APIs
   useEffect(() => {
     loadData();
   }, [companyId]);
+
+  // Load payment data when date range changes
+  useEffect(() => {
+    if (companyId) {
+      loadPaymentData();
+    }
+  }, [companyId, dateRange]);
 
   const loadData = async () => {
     if (!companyId) return;
@@ -100,10 +129,6 @@ export default function CompanyDashboard() {
       const loadTypesResponse = await loadTypeAPI.getByCompany(companyId);
       const loadTypesData = loadTypesResponse.data.loadTypes || [];
       setLoadTypes(loadTypesData);
-
-      // TODO: Load payments from API when payment system is implemented
-      // For now, set empty array
-      setPayments([]);
     } catch (error: any) {
       console.error("Error loading data:", error);
       toast({
@@ -113,6 +138,37 @@ export default function CompanyDashboard() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadPaymentData = async () => {
+    if (!companyId) return;
+    
+    try {
+      const dateFrom = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined;
+      const dateTo = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined;
+
+      // Load payment history for this company
+      const paymentsResponse = await paymentAPI.getPaymentHistory({
+        companyId, // Use companyId for filtering
+        dateFrom,
+        dateTo,
+        limit: 1000 // Get more payments for better analytics
+      });
+      
+      setPayments(paymentsResponse.data.payments || []);
+
+      // Load payment stats
+      const statsResponse = await paymentAPI.getPaymentStats({
+        companyId,
+        dateFrom,
+        dateTo
+      });
+      
+      setPaymentStats(statsResponse.data.stats);
+    } catch (error: any) {
+      console.error("Error loading payment data:", error);
+      // Don't show error toast for payment data as it might be empty initially
     }
   };
 
@@ -195,7 +251,7 @@ export default function CompanyDashboard() {
     setEditDialogOpen(true);
   };
 
-  const logPayment = (paymentData: Omit<PaymentData, "id" | "date" | "companyId">) => {
+  const logPayment = (paymentData: { vendorId: string; amount: number; loadTypeId: string; vehicleNumber?: string; }) => {
     // TODO: Implement payment logging when payment API is ready
     toast({
       title: "Payment System Coming Soon",
@@ -290,6 +346,44 @@ export default function CompanyDashboard() {
       amount: total,
     };
   }).filter(item => item.amount > 0);
+
+  // Generate trend data for line/area charts
+  const generateTrendData = () => {
+    if (!dateRange?.from || !dateRange?.to) return [];
+
+    const trendData: { date: string; amount: number; count: number }[] = [];
+    const from = new Date(dateRange.from);
+    const to = new Date(dateRange.to);
+    const daysDiff = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Group payments by date
+    const paymentsByDate = payments.reduce((acc, payment) => {
+      const date = new Date(payment.date).toISOString().split('T')[0];
+      if (!acc[date]) {
+        acc[date] = { amount: 0, count: 0 };
+      }
+      acc[date].amount += payment.amount;
+      acc[date].count += 1;
+      return acc;
+    }, {} as Record<string, { amount: number; count: number }>);
+
+    // Generate data points for each day in the range
+    for (let i = 0; i <= daysDiff; i++) {
+      const currentDate = new Date(from);
+      currentDate.setDate(from.getDate() + i);
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      trendData.push({
+        date: dateStr,
+        amount: paymentsByDate[dateStr]?.amount || 0,
+        count: paymentsByDate[dateStr]?.count || 0,
+      });
+    }
+
+    return trendData;
+  };
+
+  const trendData = generateTrendData();
 
   if (isLoading) {
     return (
@@ -436,7 +530,7 @@ export default function CompanyDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <ExpenseChart data={chartData} />
+                  <ExpenseChart data={chartData} trendData={trendData} />
                 )}
               </CardContent>
             </Card>
@@ -444,6 +538,155 @@ export default function CompanyDashboard() {
 
           {/* Right Column */}
           <div className="space-y-6">
+            {/* Analytics Cards */}
+            {paymentStats && (
+              <div className="space-y-4">
+                {/* Total Expenses Card */}
+                <Dialog open={openPopup === 'expenses'} onOpenChange={open => setOpenPopup(open ? 'expenses' : null)}>
+                  <div onClick={() => setOpenPopup('expenses')} className="cursor-pointer">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          ₹{paymentStats.totalAmount.toLocaleString()}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {paymentStats.totalPayments} payments
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Total Expenses</DialogTitle>
+                      <DialogDescription>
+                        This is the total amount paid by the company in the selected date range.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="text-3xl font-bold mb-2">₹{paymentStats.totalAmount.toLocaleString()}</div>
+                    <div className="mb-2">Payments: {paymentStats.totalPayments}</div>
+                    {/* Optionally add a mini-chart or breakdown here */}
+                  </DialogContent>
+                </Dialog>
+
+                {/* Average Payment Card */}
+                {/* <Dialog open={openPopup === 'average'} onOpenChange={open => setOpenPopup(open ? 'average' : null)}>
+                  <div onClick={() => setOpenPopup('average')} className="cursor-pointer">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Average Payment</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          ₹{paymentStats.avgAmount.toLocaleString()}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          per transaction
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Average Payment</DialogTitle>
+                      <DialogDescription>
+                        This is the average amount per payment in the selected date range.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="text-3xl font-bold mb-2">₹{paymentStats.avgAmount.toLocaleString()}</div>
+                    <div className="mb-2">Min: ₹{paymentStats.minAmount.toLocaleString()} | Max: ₹{paymentStats.maxAmount.toLocaleString()}</div>
+                  </DialogContent>
+                </Dialog> */}
+
+                {/* Active Vendors Card */}
+                {/* <Dialog open={openPopup === 'vendors'} onOpenChange={open => setOpenPopup(open ? 'vendors' : null)}>
+                  <div onClick={() => setOpenPopup('vendors')} className="cursor-pointer">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Active Vendors</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {vendors.length}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          registered vendors
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Active Vendors</DialogTitle>
+                      <DialogDescription>
+                        These are the vendors registered with your company.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="mb-2">Total Vendors: <span className="font-bold">{vendors.length}</span></div>
+                    <ul className="max-h-40 overflow-y-auto text-sm">
+                      {vendors.map(v => <li key={v._id || v.id}>{v.name}</li>)}
+                    </ul>
+                  </DialogContent>
+                </Dialog> */}
+
+                {/* Load Types Card */}
+                {/* <Dialog open={openPopup === 'loadTypes'} onOpenChange={open => setOpenPopup(open ? 'loadTypes' : null)}>
+                  <div onClick={() => setOpenPopup('loadTypes')} className="cursor-pointer">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Load Types</CardTitle>
+                        <Truck className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {loadTypes.length}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          active load types
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Load Types</DialogTitle>
+                      <DialogDescription>
+                        These are the load types available for your company.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ul className="max-h-40 overflow-y-auto text-sm">
+                      {loadTypes.map(lt => <li key={lt._id}>{lt.name}</li>)}
+                    </ul>
+                  </DialogContent>
+                </Dialog> */}
+
+                {/* Calculator Card */}
+                <Dialog open={openPopup === 'calculator'} onOpenChange={open => setOpenPopup(open ? 'calculator' : null)}>
+                  <div onClick={() => setOpenPopup('calculator')} className="cursor-pointer">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Calculator</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center text-muted-foreground">Click to open calculator</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Calculator</DialogTitle>
+                    </DialogHeader>
+                    <Calculator />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
+
             {/* Load Types Management */}
             <Card>
               <CardHeader>
@@ -493,7 +736,7 @@ export default function CompanyDashboard() {
             </Card>
 
             {/* Calculator */}
-            <Calculator />
+            {/* The Calculator component is now a DialogTrigger */}
           </div>
         </div>
 
