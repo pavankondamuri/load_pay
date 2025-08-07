@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { PaymentDialog } from "@/components/PaymentDialog";
+import { EditVendorDialog } from "@/components/EditVendorDialog";
 import { ArrowLeft, Plus, Search, CreditCard, Trash2, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,7 +68,7 @@ export default function CompanyDashboard() {
   const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
   const [selectedVendor, setSelectedVendor] = useState<any | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -185,16 +186,13 @@ export default function CompanyDashboard() {
       return;
     }
     
-    // TODO: Implement payment functionality when payment API is ready
-    toast({
-      title: "Payment System Coming Soon",
-      description: "Payment functionality will be available once the payment gateway is integrated.",
-    });
+    setSelectedVendor(vendor);
+    setPaymentDialogOpen(true);
   };
 
   const handleEditVendor = (vendor: any) => {
     setSelectedVendor(vendor);
-    setIsEditDialogOpen(true);
+    setEditDialogOpen(true);
   };
 
   const logPayment = (paymentData: Omit<PaymentData, "id" | "date" | "companyId">) => {
@@ -513,15 +511,23 @@ export default function CompanyDashboard() {
         {/* Payment Dialog */}
         {selectedVendor && (
           <PaymentDialog
-            open={paymentDialogOpen || isEditDialogOpen}
-            onOpenChange={isEditDialogOpen ? setIsEditDialogOpen : setPaymentDialogOpen}
+            open={paymentDialogOpen}
+            onOpenChange={setPaymentDialogOpen}
             vendor={selectedVendor}
             loadTypes={loadTypes}
+            company={company}
             onLogPayment={logPayment}
+          />
+        )}
+
+        {/* Edit Vendor Dialog */}
+        {selectedVendor && (
+          <EditVendorDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            vendor={selectedVendor}
             onUpdateVendor={updateVendor}
             onDeleteVendor={deleteVendor}
-            startInEditMode={isEditDialogOpen}
-            showPaymentFields={true}
           />
         )}
       </div>

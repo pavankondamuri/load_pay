@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Payment } from "@/lib/payment";
 import { IndianRupee, Clock } from "lucide-react";
-import axios from "axios";
+import { paymentAPI } from "@/lib/api";
 
 const PaymentHistoryList = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -19,7 +19,7 @@ const PaymentHistoryList = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    axios.get("/api/payments/history")
+    paymentAPI.getPaymentHistory()
       .then(res => {
         // Map backend payment fields to Payment type for display
         const backendPayments = res.data.map((p: any) => ({

@@ -27,7 +27,6 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Vendor } from "@/lib/vender";
-import { PaymentDialog } from "@/components/PaymentDialog";
 import { companyAPI, vendorAPI } from "@/lib/api";
 
 interface Company {
@@ -52,8 +51,6 @@ const Index = () => {
   const [companySearchTerm, setCompanySearchTerm] = useState("");
   const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const { logout } = useAuth();
@@ -174,8 +171,7 @@ const Index = () => {
 
   const handleEditVendor = (vendor: any) => {
     setSelectedVendor(vendor);
-    setIsEditMode(true);
-    setIsEditDialogOpen(true);
+    setEditVendorOpen(true);
   };
 
   const handleUpdateVendor = async (updatedVendor: any) => {
@@ -373,18 +369,19 @@ const Index = () => {
           onSearchTermChange={setVendorSearchTerm}
         />
         </div>
+
+        {/* Edit Vendor Dialog */}
         {selectedVendor && (
-          <PaymentDialog
-            open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
+          <EditVendorDialog
+            open={editVendorOpen}
+            onOpenChange={setEditVendorOpen}
             vendor={selectedVendor}
-            loadTypes={[]}
             onUpdateVendor={handleUpdateVendor}
             onDeleteVendor={handleDeleteVendor}
-            startInEditMode={isEditMode}
-            showPaymentFields={!isEditMode}
           />
         )}
+
+        {/* Edit Company Dialog */}
         {selectedCompany && (
           <EditCompanyDialog
             company={selectedCompany}

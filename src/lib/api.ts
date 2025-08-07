@@ -103,4 +103,55 @@ export const loadTypeAPI = {
     api.delete(`/loadtype/${id}`),
 };
 
+export const paymentAPI = {
+  createOrder: (data: {
+    amount: number;
+    currency?: string;
+    receipt?: string;
+    notes?: any;
+  }) => 
+    api.post('/payments/create-order', data),
+  
+  verifyPayment: (data: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    amount: number;
+    vendorName: string;
+    vendorId: string;
+    companyName: string;
+    companyId?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    vehicleNumbers?: string[];
+    loadTypeId?: string;
+    loadTypeName?: string;
+  }) => 
+    api.post('/payments/verify', data),
+  
+  getPaymentHistory: (filters?: {
+    vendorName?: string;
+    companyName?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    amountMin?: number;
+    amountMax?: number;
+    vehicleNumber?: string;
+    loadTypeId?: string;
+    page?: number;
+    limit?: number;
+  }) => 
+    api.get('/payments/history', { params: filters }),
+  
+  getPaymentStats: (filters?: {
+    companyId?: string;
+    vendorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => 
+    api.get('/payments/stats', { params: filters }),
+};
+
 export default api; 
