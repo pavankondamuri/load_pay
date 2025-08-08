@@ -78,7 +78,7 @@ export function EditVendorDialog({ open, onOpenChange, vendor, onUpdateVendor, o
       ...editedVendor,
       accountNumber: editedVendor.accountNumber || "",
       phoneNumber: editedVendor.phoneNumber || "",
-      vehicleNumbers: editedVendor.vehicleNumbers || editedVendor.vechicleNumber || [],
+      vechicleNumber: editedVendor.vehicleNumbers || editedVendor.vechicleNumber || [],
     };
     onUpdateVendor(vendorToUpdate);
     onOpenChange(false);

@@ -141,9 +141,13 @@ export function AddVendorDialog() {
               <Label htmlFor="accountNumber">Account Number *</Label>
               <Input
                 id="accountNumber"
-                type="number"
+                type="text"
+                pattern="[0-9]*"
                 value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  setAccountNumber(value);
+                }}
                 placeholder="Enter account number"
                 required
               />

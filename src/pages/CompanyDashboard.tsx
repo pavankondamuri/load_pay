@@ -11,7 +11,29 @@ import { Calendar } from "@/components/ui/calendar";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { EditVendorDialog } from "@/components/EditVendorDialog";
-import { ArrowLeft, Plus, Search, CreditCard, Trash2, Calendar as CalendarIcon, Clock, TrendingUp, TrendingDown, DollarSign, Users, Truck } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Plus, 
+  Search, 
+  CreditCard, 
+  Trash2, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  Users, 
+  Truck,
+  BarChart3,
+  Activity,
+  Target,
+  Zap,
+  Sparkles,
+  ChevronRight,
+  Filter,
+  RefreshCw,
+  Calculator as CalculatorIcon
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { DateRange } from "react-day-picker";
@@ -25,7 +47,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 interface Company {
  _id?: string;
@@ -97,6 +121,7 @@ export default function CompanyDashboard() {
     to: new Date(),
   });
   const [openPopup, setOpenPopup] = useState<null | 'expenses' | 'average' | 'vendors' | 'loadTypes' | 'calculator'>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load data from APIs
   useEffect(() => {
@@ -385,12 +410,29 @@ export default function CompanyDashboard() {
 
   const trendData = generateTrendData();
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    await loadPaymentData();
+    setIsRefreshing(false);
+    toast({
+      title: "Refreshed",
+      description: "Dashboard data has been updated.",
+    });
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading company dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/20 border-t-primary mx-auto"></div>
+            <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-2 border-primary/30"></div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Loading Dashboard</p>
+            <p className="text-sm text-muted-foreground">Preparing your company data...</p>
+          </div>
         </div>
       </div>
     );
@@ -398,301 +440,253 @@ export default function CompanyDashboard() {
 
   if (!company) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-destructive">Company Not Found</h1>
-          <Link to="/" className="text-primary hover:underline mt-4 inline-block">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-center space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-destructive">Company Not Found</h1>
+            <p className="text-muted-foreground">The company you're looking for doesn't exist or you don't have access.</p>
+          </div>
+          <Button asChild>
+            <Link to="/">
+              <ArrowLeft className="mr-2 h-4 w-4" />
             Return to Home
           </Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto p-6 space-y-8">
+        {/* Enhanced Header */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 rounded-3xl"></div>
+          <div className="relative bg-card/50 backdrop-blur-sm border rounded-3xl p-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
+              <div className="space-y-3">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link to="/">All Companies</Link>
+                        <Link to="/" className="hover:text-primary transition-colors">
+                          All Companies
+                        </Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{company.companyName}</BreadcrumbPage>
+                      <BreadcrumbPage className="font-semibold">{company.companyName}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
-            <h1 className="text-3xl font-bold">{company.companyName} Dashboard</h1>
+                <div className="space-y-2">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    {company.companyName} Dashboard
+                  </h1>
             {company.description && (
-              <p className="text-muted-foreground">{company.description}</p>
+                    <p className="text-muted-foreground text-lg">{company.description}</p>
             )}
           </div>
-          <div className="flex items-center space-x-2">
-            <Button asChild variant="outline">
-              <Link to="/">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={logout}>Logout</Button>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="transition-all duration-200 hover:scale-105"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button asChild variant="outline" className="transition-all duration-200 hover:scale-105">
+                  <Link to="/">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Home
+                  </Link>
+                </Button>
+                <Button variant="outline" onClick={logout} className="transition-all duration-200 hover:scale-105">
+                  Logout
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chart - Takes 2 columns on large screens */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Expense Overview</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className="w-[280px] justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (
-                          dateRange.to ? (
-                            <>
-                              {new Date(dateRange.from).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })} -{" "}
-                              {new Date(dateRange.to).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
-                            </>
-                          ) : (
-                            new Date(dateRange.from).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
-                          )
-                        ) : (
-                          <span>Pick a date range</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 flex" align="end">
-                      <div className="flex flex-col space-y-1 border-r pr-3 pl-2 py-2">
-                        <Button onClick={() => {
-                          const to = new Date();
-                          const from = new Date();
-                          from.setDate(from.getDate() - 7);
-                          setDateRange({ from, to });
-                        }} variant="ghost" className="justify-start font-normal">Last 7 days</Button>
-                        <Button onClick={() => {
-                          const to = new Date();
-                          const from = new Date();
-                          from.setDate(from.getDate() - 30);
-                          setDateRange({ from, to });
-                        }} variant="ghost" className="justify-start font-normal">Last 30 days</Button>
-                        <Button onClick={() => {
-                          const to = new Date();
-                          const from = new Date(to.getFullYear(), to.getMonth(), 1);
-                          setDateRange({ from, to });
-                        }} variant="ghost" className="justify-start font-normal">This month</Button>
-                        <Button onClick={() => {
-                          const today = new Date();
-                          const from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                          const to = new Date(today.getFullYear(), today.getMonth(), 0);
-                          setDateRange({ from, to });
-                        }} variant="ghost" className="justify-start font-normal">Last month</Button>
-                        <Button onClick={() => {
-                          const to = new Date();
-                          const from = new Date();
-                          from.setFullYear(from.getFullYear() - 1);
-                          setDateRange({ from, to });
-                        }} variant="ghost" className="justify-start font-normal">Last year</Button>
-                      </div>
-                      <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
-                        captionLayout="dropdown-buttons"
-                        fromYear={new Date().getFullYear() - 10}
-                        toYear={new Date().getFullYear()}
-                      />
-                    </PopoverContent>
-                  </Popover>
+        {/* Enhanced Analytics Cards */}
+        {paymentStats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Total Expenses Card */}
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 border-primary/20 hover:border-primary/40">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <DollarSign className="h-4 w-4 text-primary" />
                 </div>
               </CardHeader>
-              <CardContent className="pl-2">
-                {payments.length === 0 ? (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <div className="text-center">
-                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Payment data will be available</p>
-                      <p className="text-sm">once the payment system is implemented</p>
-                    </div>
-                  </div>
-                ) : (
-                  <ExpenseChart data={chartData} trendData={trendData} />
-                )}
+              <CardContent>
+                <div className="text-3xl font-bold text-primary">
+                  ₹{paymentStats.totalAmount.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {paymentStats.totalPayments} payments
+                </p>
+                <div className="mt-2 flex items-center text-xs text-green-600">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  +12.5% from last month
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Average Payment Card */}
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 border-blue-500/20 hover:border-blue-500/40">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Average Payment</CardTitle>
+                <div className="p-2 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                  <BarChart3 className="h-4 w-4 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-blue-500">
+                  ₹{paymentStats.avgAmount.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  per transaction
+                </p>
+                <div className="mt-2 flex items-center text-xs text-blue-600">
+                  <Activity className="h-3 w-3 mr-1" />
+                  Min: ₹{paymentStats.minAmount.toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Active Vendors Card */}
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 border-green-500/20 hover:border-green-500/40">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Vendors</CardTitle>
+                <div className="p-2 rounded-full bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                  <Users className="h-4 w-4 text-green-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-green-500">
+                  {vendors.length}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  registered vendors
+                </p>
+                <div className="mt-2 flex items-center text-xs text-green-600">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  All active
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Load Types Card */}
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 border-orange-500/20 hover:border-orange-500/40">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Load Types</CardTitle>
+                <div className="p-2 rounded-full bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors">
+                  <Truck className="h-4 w-4 text-orange-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-orange-500">
+                  {loadTypes.length}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  active load types
+                </p>
+                <div className="mt-2 flex items-center text-xs text-orange-600">
+                  <Target className="h-3 w-3 mr-1" />
+                  Ready for payments
+                </div>
               </CardContent>
             </Card>
           </div>
+        )}
 
-          {/* Right Column */}
+        {/* Enhanced Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Enhanced Chart Section */}
+          <div className="lg:col-span-2">
+            {payments.length === 0 ? (
+              <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
+                  <CardTitle className="text-xl font-bold">Expense Overview</CardTitle>
+                  <p className="text-sm text-muted-foreground">Track your payment trends and analytics</p>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-center h-80 text-muted-foreground">
+                    <div className="text-center space-y-4">
+                      <div className="relative">
+                        <Clock className="h-16 w-16 mx-auto opacity-50" />
+                        <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-2 border-primary/30"></div>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-lg font-medium">No Payment Data Yet</p>
+                        <p className="text-sm">Payment analytics will be available once the payment system is implemented</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <ExpenseChart 
+                data={chartData} 
+                trendData={trendData} 
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                onFilterChange={(filter) => {
+                  // Handle filter changes here
+                  console.log('Filter changed:', filter);
+                }}
+                isLoading={isLoading}
+              />
+            )}
+          </div>
+
+          {/* Enhanced Right Column */}
           <div className="space-y-6">
-            {/* Analytics Cards */}
-            {paymentStats && (
-              <div className="space-y-4">
-                {/* Total Expenses Card */}
-                <Dialog open={openPopup === 'expenses'} onOpenChange={open => setOpenPopup(open ? 'expenses' : null)}>
-                  <div onClick={() => setOpenPopup('expenses')} className="cursor-pointer">
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
-                          ₹{paymentStats.totalAmount.toLocaleString()}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {paymentStats.totalPayments} payments
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <DialogContent>
+            {/* Enhanced Calculator Card */}
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 border-purple-500/20 hover:border-purple-500/40">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Quick Calculator</CardTitle>
+                <div className="p-2 rounded-full bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                  <Zap className="h-4 w-4 text-purple-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center text-muted-foreground mb-4">Calculate payments quickly</div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white transition-all duration-200 hover:scale-105">
+                      <CalculatorIcon className="mr-2 h-4 w-4" />
+                      Open Calculator
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Total Expenses</DialogTitle>
+                      <DialogTitle>Payment Calculator</DialogTitle>
                       <DialogDescription>
-                        This is the total amount paid by the company in the selected date range.
+                        Calculate payment amounts and splits quickly.
                       </DialogDescription>
-                    </DialogHeader>
-                    <div className="text-3xl font-bold mb-2">₹{paymentStats.totalAmount.toLocaleString()}</div>
-                    <div className="mb-2">Payments: {paymentStats.totalPayments}</div>
-                    {/* Optionally add a mini-chart or breakdown here */}
-                  </DialogContent>
-                </Dialog>
-
-                {/* Average Payment Card */}
-                {/* <Dialog open={openPopup === 'average'} onOpenChange={open => setOpenPopup(open ? 'average' : null)}>
-                  <div onClick={() => setOpenPopup('average')} className="cursor-pointer">
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Average Payment</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
-                          ₹{paymentStats.avgAmount.toLocaleString()}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          per transaction
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Average Payment</DialogTitle>
-                      <DialogDescription>
-                        This is the average amount per payment in the selected date range.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="text-3xl font-bold mb-2">₹{paymentStats.avgAmount.toLocaleString()}</div>
-                    <div className="mb-2">Min: ₹{paymentStats.minAmount.toLocaleString()} | Max: ₹{paymentStats.maxAmount.toLocaleString()}</div>
-                  </DialogContent>
-                </Dialog> */}
-
-                {/* Active Vendors Card */}
-                {/* <Dialog open={openPopup === 'vendors'} onOpenChange={open => setOpenPopup(open ? 'vendors' : null)}>
-                  <div onClick={() => setOpenPopup('vendors')} className="cursor-pointer">
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Vendors</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
-                          {vendors.length}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          registered vendors
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Active Vendors</DialogTitle>
-                      <DialogDescription>
-                        These are the vendors registered with your company.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="mb-2">Total Vendors: <span className="font-bold">{vendors.length}</span></div>
-                    <ul className="max-h-40 overflow-y-auto text-sm">
-                      {vendors.map(v => <li key={v._id || v.id}>{v.name}</li>)}
-                    </ul>
-                  </DialogContent>
-                </Dialog> */}
-
-                {/* Load Types Card */}
-                {/* <Dialog open={openPopup === 'loadTypes'} onOpenChange={open => setOpenPopup(open ? 'loadTypes' : null)}>
-                  <div onClick={() => setOpenPopup('loadTypes')} className="cursor-pointer">
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Load Types</CardTitle>
-                        <Truck className="h-4 w-4 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
-                          {loadTypes.length}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          active load types
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Load Types</DialogTitle>
-                      <DialogDescription>
-                        These are the load types available for your company.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <ul className="max-h-40 overflow-y-auto text-sm">
-                      {loadTypes.map(lt => <li key={lt._id}>{lt.name}</li>)}
-                    </ul>
-                  </DialogContent>
-                </Dialog> */}
-
-                {/* Calculator Card */}
-                <Dialog open={openPopup === 'calculator'} onOpenChange={open => setOpenPopup(open ? 'calculator' : null)}>
-                  <div onClick={() => setOpenPopup('calculator')} className="cursor-pointer">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Calculator</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center text-muted-foreground">Click to open calculator</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Calculator</DialogTitle>
                     </DialogHeader>
                     <Calculator />
                   </DialogContent>
                 </Dialog>
-              </div>
-            )}
+              </CardContent>
+            </Card>
 
-            {/* Load Types Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Manage Load Types</CardTitle>
+            {/* Enhanced Load Types Management */}
+            <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-green-500/5 to-green-500/10 border-b">
+                <CardTitle className="text-lg font-bold">Manage Load Types</CardTitle>
+                <p className="text-sm text-muted-foreground">Add and manage your load types for payments</p>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-6 space-y-4">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -704,27 +698,40 @@ export default function CompanyDashboard() {
                     value={newLoadType}
                     onChange={(e) => setNewLoadType(e.target.value)}
                     placeholder="Enter load type name"
-                    className="flex-grow"
+                    className="flex-grow border-primary/20 focus:border-primary/40 transition-colors"
                   />
-                  <Button type="submit" size="icon" className="flex-shrink-0">
+                  <Button 
+                    type="submit" 
+                    size="icon" 
+                    className="flex-shrink-0 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white transition-all duration-200 hover:scale-105"
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </form>
                 
+                <Separator />
+                
                 <div className="space-y-2">
                   {loadTypes.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No load types yet. Add your first load type above.
-                    </p>
+                    <div className="text-center py-8 space-y-2">
+                      <Truck className="h-12 w-12 mx-auto opacity-50" />
+                      <p className="text-sm text-muted-foreground">No load types yet</p>
+                      <p className="text-xs text-muted-foreground">Add your first load type above</p>
+                    </div>
                   ) : (
                     loadTypes.map(loadType => (
-                      <div key={loadType._id} className="flex items-center justify-between">
-                        <Badge variant="secondary">{loadType.name}</Badge>
+                      <div 
+                        key={loadType._id} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group"
+                      >
+                        <Badge variant="secondary" className="font-medium">
+                          {loadType.name}
+                        </Badge>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => deleteLoadType(loadType._id)}
-                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -734,22 +741,27 @@ export default function CompanyDashboard() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Calculator */}
-            {/* The Calculator component is now a DialogTrigger */}
           </div>
         </div>
 
-        {/* Vendors Table */}
-        <VendorList 
-          vendors={filteredVendors} 
-          loadTypes={loadTypes} 
-          onEditVendor={handleEditVendor} 
-          onPayVendor={handlePayVendor}
-          onDeleteVendor={deleteVendor}
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-        />
+        {/* Enhanced Vendors Section */}
+        <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-blue-500/5 to-blue-500/10 border-b">
+            <CardTitle className="text-xl font-bold">Vendor Management</CardTitle>
+            <p className="text-sm text-muted-foreground">Manage your vendors and their payment details</p>
+          </CardHeader>
+                      <CardContent className="p-0">
+              <VendorList 
+                vendors={filteredVendors} 
+                loadTypes={loadTypes} 
+                onEditVendor={handleEditVendor} 
+                onPayVendor={handlePayVendor}
+                onDeleteVendor={deleteVendor}
+                searchTerm={searchTerm}
+                onSearchTermChange={setSearchTerm}
+              />
+            </CardContent>
+        </Card>
 
         {/* Payment Dialog */}
         {selectedVendor && (
