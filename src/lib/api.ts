@@ -40,67 +40,67 @@ api.interceptors.response.use(
 // API functions
 export const authAPI = {
   login: (email: string, password: string) => 
-    api.post('/user/login', { email, password }),
+    api.post('/api/user/login', { email, password }),
   
   register: (email: string, password: string) => 
-    api.post('/user/register', { email, password }),
+    api.post('/api/user/register', { email, password }),
   
   logout: () => 
-    api.post('/user/logout'),
+    api.post('/api/user/logout'),
   
   getProfile: () => 
-    api.get('/user/profile'),
+    api.get('/api/user/profile'),
 };
 
 export const companyAPI = {
   create: (data: any) => 
-    api.post('/company/create', data),
+    api.post('/api/company/create', data),
   
   getAll: () => 
-    api.get('/company/get'),
+    api.get('/api/company/get'),
   
   getById: (id: string) => 
-    api.get(`/company/${id}`),
+    api.get(`/api/company/${id}`),
   
   update: (id: string, data: any) => 
-    api.put(`/company/${id}`, data),
+    api.put(`/api/company/${id}`, data),
   
   delete: (id: string) => 
-    api.delete(`/company/${id}`),
+    api.delete(`/api/company/${id}`),
 };
 
 export const vendorAPI = {
   create: (data: any) => 
-    api.post('/vendor/create', data),
+    api.post('/api/vendor/create', data),
   
   getAll: () => 
-    api.get('/vendor/get'),
+    api.get('/api/vendor/get'),
   
   getById: (id: string) => 
-    api.get(`/vendor/${id}`),
+    api.get(`/api/vendor/${id}`),
   
   update: (id: string, data: any) => 
-    api.put(`/vendor/${id}`, data),
+    api.put(`/api/vendor/${id}`, data),
   
   delete: (id: string) => 
-    api.delete(`/vendor/${id}`),
+    api.delete(`/api/vendor/${id}`),
 };
 
 export const loadTypeAPI = {
   create: (data: any) => 
-    api.post('/loadtype/create', data),
+    api.post('/api/loadtype/create', data),
   
   getByCompany: (companyId: string) => 
-    api.get(`/loadtype/company/${companyId}`),
+    api.get(`/api/loadtype/company/${companyId}`),
   
   getById: (id: string) => 
-    api.get(`/loadtype/${id}`),
+    api.get(`/api/loadtype/${id}`),
   
   update: (id: string, data: any) => 
-    api.put(`/loadtype/${id}`, data),
+    api.put(`/api/loadtype/${id}`, data),
   
   delete: (id: string) => 
-    api.delete(`/loadtype/${id}`),
+    api.delete(`/api/loadtype/${id}`),
 };
 
 export const paymentAPI = {
@@ -110,7 +110,7 @@ export const paymentAPI = {
     receipt?: string;
     notes?: any;
   }) => 
-    api.post('/payments/create-order', data),
+    api.post('/api/payments/create-order', data),
   
   verifyPayment: (data: {
     razorpay_order_id: string;
@@ -128,7 +128,7 @@ export const paymentAPI = {
     loadTypeId?: string;
     loadTypeName?: string;
   }) => 
-    api.post('/payments/verify', data),
+    api.post('/api/payments/verify', data),
   
   getPaymentHistory: (filters?: {
     vendorName?: string;
@@ -145,7 +145,7 @@ export const paymentAPI = {
     page?: number;
     limit?: number;
   }) => 
-    api.get('/payments/history', { params: filters }),
+    api.get('/api/payments/history', { params: filters }),
   
   getPaymentStats: (filters?: {
     companyId?: string;
@@ -153,7 +153,7 @@ export const paymentAPI = {
     dateFrom?: string;
     dateTo?: string;
   }) => 
-    api.get('/payments/stats', { params: filters }),
+    api.get('/api/payments/stats', { params: filters }),
 };
 
 export default api; 
