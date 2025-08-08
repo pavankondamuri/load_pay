@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://pay-load-backend-kondamuri-pavan-kumars-projects.vercel.app/';
+const API_BASE_URL = 'https://pay-load-backend.vercel.app/';
 
 // Create axios instance with default config
 const api = axios.create({
